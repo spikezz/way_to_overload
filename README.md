@@ -1,2 +1,52 @@
 # way_to_overload
-lectures and knowledge for agent swarm learning
+
+Lectures and knowledge for agent swarm learning — an [OpenMAIC](https://github.com/) course on **stigmergy（共识主动性 / 间接协同）**: how decentralized agents self-organize through environment-mediated signals, from social insects to swarm algorithms.
+
+## 课程：涌现与非直接协同的奥秘
+
+`course/涌现与非直接协同的奥秘/` — 10 个场景（3 讲义 slide + 7 互动 widget）：
+
+1. 社会性昆虫理论演化史
+2. 独居蜂的流水线噩梦：刺激-反应链仿真
+3. 白蚁筑拱：定量自组织的相变与分岔
+4. 蜂巢拓扑 growth：定性规则与概率的选择
+5. 极简格点蜂群算法（Lattice Swarm）实现
+6. 蜂巢架构师：群落形态控制挑战
+7. 数字信息素：路网优化与最短路径寻优仿真
+
+### 文件说明
+
+| 路径 | 内容 |
+|---|---|
+| `manifest.json` | 课程全文：场景、内联互动 HTML、旁白脚本（OpenMAIC 导入用） |
+| `audio/` | 61 段旁白音频（echo 声音，已渲染） |
+| `interactive/` | 7 个互动 widget 的独立 HTML（便于阅读；内容也已内联在 manifest） |
+| `*.pptx` | 幻灯片导出 |
+| `voice-config.json` | TTS 声音分配（导入后需手动恢复，见下） |
+| `restore-voices.js` | 浏览器 console 一键恢复声音脚本 |
+
+## 在 OpenMAIC 中打开
+
+1. 把 `manifest.json` 和 `audio/` 一起打包成一个 `.zip`：
+   ```bash
+   cd "course/涌现与非直接协同的奥秘"
+   zip -r course.zip manifest.json audio
+   ```
+2. OpenMAIC 首页 → Import → 选这个 `.zip`
+3. 导入后运行声音恢复（见下），否则实时讨论的角色声音会是默认 fallback
+
+> `interactive/` 和 `*.pptx` 是给人阅读的附属导出，不需要放进导入 zip（互动 HTML 已内联在 manifest）。
+
+## 恢复角色声音
+
+OpenMAIC 的导出格式不携带 per-agent 声音配置，需手动恢复：
+
+1. 在运行 OpenMAIC 的浏览器标签打开 DevTools Console
+2. 粘贴并运行 `course/涌现与非直接协同的奥秘/restore-voices.js` 的内容
+3. 刷新页面
+
+声音分配：老师 `echo` · 显眼包 `nova` · 好奇宝宝 `alloy` · 思考者 `shimmer`。详见 `voice-config.json`。
+
+## License
+
+[MIT](LICENSE) © 2026 spikezz

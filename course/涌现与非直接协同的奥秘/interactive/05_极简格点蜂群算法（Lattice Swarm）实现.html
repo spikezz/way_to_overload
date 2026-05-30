@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简格点蜂群算法（Lattice Swarm）交互沙盒</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CodeMirror for Python Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-ocean.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pyodide CDN for WebAssembly Python -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <style>
+        /* Custom Scrollbar for Sleek Visuals */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .CodeMirror {
+            height: 380px !important;
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 14px;
+            border-radius: 0.5rem;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+        }
+        .glow-amber {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+        }
+        /* Grid Canvas Styling */
+        #sim-canvas {
+            image-rendering: pixelated;
+        }
+    </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+
+    <!-- Pyodide Loader Overlay -->
+    <div id="loader-overlay" class="fixed inset-0 bg-slate-950 bg-opacity-90 z-50 flex flex-col justify-center items-center transition-all duration-500">
+        <div class="relative flex items-center justify-center">
+            <div class="w-20 h-20 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"></div>
+            <i class="fa-solid fa-hive text-2xl text-cyan-400 absolute animate-pulse"></i>
+        </div>
+        <h2 class="text-xl font-bold mt-6 tracking-wide text-cyan-400">正在构建 Python 蜂群动力学仿真环境...</h2>
+        <p id="loader-status" class="text-slate-400 text-sm mt-2 font-mono">1/3 正在加载 WebAssembly 核心组件...</p>
+        <div class="w-64 bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden">
+            <div id="loader-bar" class="bg-cyan-400 h-full w-1/12 transition-all duration-300"></div>
+        </div>
+    </div>
+
+    <!-- Main Workspace Container -->
+    <div class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow flex flex-col">
+        <!-- Header Section -->
+        <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-5">
+            <div>
+                <div class="flex items-center gap-3">
+                    <span class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-xs px-2.5 py-1 rounded-full font-semibold tracking-wider">
+                        SWARM INTELLIGENCE
+                    </span>
+                    <span class="text-xs text-slate-500 font-mono">Level: Engineering Core</span>
+                </div>
+                <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-slate-100 to-cyan-400 bg-clip-text text-transparent mt-1">
+                    极简格点蜂群算法 (Lattice Swarm)
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">
+                    用 Stigmergy / 非直接协同 机制构建空间物理结构，理解无中央控制的涌现行为。
+                </p>
+            </div>
+            <!-- Quick Stats Bar -->
+            <div class="flex items-center gap-4 mt-4 md:mt-0 bg-slate-900 border border-slate-800 px-4 py-3 rounded-lg text-xs font-mono">
+                <div>
+                    <span class="text-slate-500 block">系统状态</span>
+                    <span id="runtime-indicator" class="text-amber-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> 环境准备中
+                    </span>
+                </div>
+                <div class="border-l border-slate-800 h-8"></div>
+                <div>
+                    <span class="text-slate-500 block">模拟并行度</span>
+                    <span class="text-cyan-400 font-bold">100+ Agents (仿真级)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Two-Column Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow items-stretch">
+            
+            <!-- Left Panel: Concept, Visual Simulator & Hints (5 Columns) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                <!-- Navigation Tabs -->
+                <div class="bg-slate-900 rounded-xl p-1 border border-slate-800 flex shrink-0">
+                    <button id="tab-btn-concept" class="flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all text-cyan-400 bg-slate-950 shadow-inner">
+                        <i class="fa-solid fa-book-open mr-1.5"></i> 实验指南 & 原理
+                    </button>
+                    <button id="tab-btn-sim" class="flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-slate-200">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> 蜂群仿真器
+                    </button>
+                </div>
+
+                <!-- Tab content container -->
+                <div class="flex-grow flex flex-col min-h-[420px] bg-slate-900 border border-slate-800 rounded-xl p-5 overflow-y-auto">
+                    
+                    <!-- Tab 1: Concept Section -->
+                    <div id="tab-content-concept" class="space-y-4">
+                        <div class="bg-cyan-950/20 border border-cyan-500/20 rounded-lg p-4">
+                            <h3 class="text-cyan-400 text-sm font-bold flex items-center gap-2">
+                                <i class="fa-solid fa-brain"></i> 什么是 Stigmergy / 非直接协同?
+                            </h3>
+                            <p class="text-slate-300 text-xs mt-2 leading-relaxed">
+                                蚂蚁和蜜蜂不需要向同伴发送明确信号。它们仅通过<strong>“往地上放砖块（环境痕迹）”</strong>来改变路过者的行为。当砖块在某处形成聚集，就会触发<strong>Positive Feedback / 正反馈</strong>，驱使更多个体在这里堆叠。这种现象在宏观上能促使局部结构突破临界状态，产生<strong>Bifurcation / 分岔</strong>，涌现出各种复杂的有序巢穴。
+                            </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <h4 class="text-slate-200 text-xs font-bold uppercase tracking-wider">你的实验任务:</h4>
+                            <p class="text-slate-300 text-xs leading-relaxed">
+                                每个智能体随机在网格世界中探索。当它踩到一个空地（0）时，会感知其周围 <strong>3x3 的 Moore 邻域（摩尔邻域）</strong>。
+                                规则如下：
+                            </p>
+                            <ul class="list-disc pl-4 text-xs text-slate-300 space-y-1">
+                                <li>统计周围 8 个邻格中<strong>已占用的格子（值为1）</strong>的个数。</li>
+                                <li>如果数量处于 <strong>[2, 4]</strong> 区间（即 2、3 或 4 个邻格有砖块），触发筑巢决策，在该格点放下新砖块（返回 <code class="text-cyan-400 font-mono">True</code>）。</li>
+                                <li>否则返回 <code class="text-rose-400 font-mono">False</code>（防止过度拥挤而塌陷，或防止完全孤立生长）。</li>
+                            </ul>
+                        </div>
+
+                        <!-- Test Status Board -->
+                        <div class="border-t border-slate-800 pt-4">
+                            <h4 class="text-slate-200 text-xs font-bold mb-2">测试用例验证 (自动评估)</h4>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div id="test-t1" class="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs flex justify-between items-center">
+                                    <span class="text-slate-400">t1: 空旷无邻居</span>
+                                    <span class="status-badge text-slate-500"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                                </div>
+                                <div id="test-t2" class="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs flex justify-between items-center">
+                                    <span class="text-slate-400">t2: 适度引导 (2)</span>
+                                    <span class="status-badge text-slate-500"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                                </div>
+                                <div id="test-t3" class="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs flex justify-between items-center">
+                                    <span class="text-slate-400">t3: 完美夹角 (3)</span>
+                                    <span class="status-badge text-slate-500"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                                </div>
+                                <div id="test-t4" class="bg-slate-950 p-2.5 rounded border border-slate-800 text-xs flex justify-between items-center">
+                                    <span class="text-slate-400">t4: 拥挤坍塌 (5)</span>
+                                    <span class="status-badge text-slate-500"><i class="fa-solid fa-circle-notch animate-spin"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Visual Simulator Canvas -->
+                    <div id="tab-content-sim" class="hidden flex-grow flex flex-col justify-between">
+                        <div class="relative bg-slate-950 border border-slate-800 rounded-lg p-2 flex justify-center items-center overflow-hidden glow-cyan">
+                            <canvas id="sim-canvas" width="400" height="400" class="max-w-full h-auto rounded bg-slate-950"></canvas>
+                            <!-- Watermark / HUD overlay -->
+                            <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 px-2.5 py-1 rounded text-[10px] font-mono text-cyan-400 pointer-events-none">
+                                GRID: 40 x 40 | SEED INIT: ACTIVE
+                            </div>
+                        </div>
+
+                        <!-- Real-time metrics -->
+                        <div class="grid grid-cols-3 gap-2 mt-4 text-center font-mono">
+                            <div class="bg-slate-950 border border-slate-800 p-2 rounded">
+                                <span class="text-[10px] text-slate-500 block">系统迭代步 (Step)</span>
+                                <span id="stat-step" class="text-slate-200 text-sm font-bold">0</span>
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 p-2 rounded">
+                                <span class="text-[10px] text-slate-500 block">蜂巢砖块 (Bricks)</span>
+                                <span id="stat-bricks" class="text-cyan-400 text-sm font-bold">0</span>
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 p-2 rounded">
+                                <span class="text-[10px] text-slate-500 block">感知体 (Agents)</span>
+                                <span class="text-amber-400 text-sm font-bold">45</span>
+                            </div>
+                        </div>
+
+                        <!-- Sim Controls -->
+                        <div class="mt-4 flex gap-2">
+                            <button id="sim-play-btn" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-bold py-2 rounded transition flex items-center justify-center gap-1.5 disabled:opacity-50">
+                                <i class="fa-solid fa-play"></i> 开始物理仿真
+                            </button>
+                            <button id="sim-reset-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-4 py-2 rounded transition">
+                                重置
+                            </button>
+                        </div>
+                        <p id="sim-status-txt" class="text-[10px] text-slate-400 mt-2 text-center font-mono">
+                            仿真目前处于初始静止状态。完善算法并运行后，点击上方按钮观察自组织的相变过程。
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Hints Progressive Block -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-400">遇到困难？逐级获取工程思路</span>
+                        <button id="hint-trigger-btn" class="text-xs text-cyan-400 hover:underline flex items-center gap-1">
+                            <i class="fa-solid fa-lightbulb"></i> <span id="hint-btn-text">获取第一个提示</span>
+                        </button>
+                    </div>
+                    <!-- Display revealed hints -->
+                    <div id="hints-display-area" class="mt-2 space-y-2 hidden"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Code Sandbox Editor (7 Columns) -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl flex flex-col flex-grow overflow-hidden">
+                    <!-- Editor Header Banner -->
+                    <div class="bg-slate-950 px-4 py-2 flex items-center justify-between border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                            <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                            <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                            <span class="text-xs font-mono text-slate-400 ml-2">lattice_swarm_agent.py</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="reset-code-btn" class="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1">
+                                <i class="fa-solid fa-rotate-left"></i> 恢复初始模板
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CodeMirror Workspace -->
+                    <div class="flex-grow relative">
+                        <textarea id="code-editor-target"></textarea>
+                    </div>
+
+                    <!-- Sandbox Controls -->
+                    <div class="bg-slate-950 p-3 border-t border-slate-800 flex items-center justify-between gap-4">
+                        <div class="text-xs text-slate-500 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-question text-slate-400"></i>
+                            建议避免嵌套大循环，利用 Python 特性高效解析邻域。
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button id="run-user-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2.5 rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-50" disabled>
+                                <i class="fa-solid fa-terminal"></i> 运行编译调试
+                            </button>
+                            <button id="verify-test-btn" class="bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-slate-950 text-xs font-bold px-5 py-2.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md shadow-cyan-900/20 disabled:opacity-50" disabled>
+                                <i class="fa-solid fa-check-double"></i> 验证核心测试集
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation/Console Sandbox output -->
+                <div class="bg-slate-900 border border-slate-850 rounded-xl p-4 h-48 flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2 text-xs font-bold text-slate-400">
+                            <i class="fa-solid fa-rectangle-list"></i> 终端输出 / Debug 控制台
+                        </div>
+                        <button onclick="clearConsole()" class="text-[10px] text-slate-500 hover:text-slate-300">
+                            清空
+                        </button>
+                    </div>
+                    <!-- Terminal Content -->
+                    <div id="console-output" class="flex-grow bg-slate-950 rounded-lg p-3 font-mono text-xs overflow-y-auto border border-slate-850">
+                        <div class="text-slate-500">> 等待系统初始化就绪...</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Hidden Configuration JSON conforming to Code Playground Widget Spec -->
+    <script type="application/json" id="widget-configuration">
+    {
+      "type": "code",
+      "language": "python",
+      "description": "极简格点蜂群算法（Lattice Swarm）实现。通过编写极简的 if-then 局部感知逻辑，控制数以百计的非直接协同（Stigmergy）智能体，涌现出宏观上有序的自组织巢穴结构。",
+      "starterCode": "def should_deposit(neighborhood):\n    # 1. 统计周围 8 个邻格中已有砖块(1)的总数\n    # neighborhood 为 3x3 的矩阵，中心点 neighborhood[1][1] 是你当前站立的空地(0)\n    brick_count = 0\n    \n    # TODO: 请补全计算和判断逻辑，并在数量为 2 到 4 时筑巢（返回 True）\n    \n    return False",
+      "testCases": [
+        { "id": "t1", "input": "[[0,0,0],[0,0,0],[0,0,0]]", "expected": "False", "description": "空旷地带（0个邻居）应拒绝筑巢" },
+        { "id": "t2", "input": "[[1,0,1],[0,0,0],[0,0,0]]", "expected": "True", "description": "适度堆叠（2个邻居）触发筑巢" },
+        { "id": "t3", "input": "[[1,1,1],[0,0,0],[0,0,0]]", "expected": "True", "description": "完美角落（3个邻居）触发筑巢" },
+        { "id": "t4", "input": "[[1,1,1],[1,0,1],[0,0,0]]", "expected": "False", "description": "过度拥挤（5个邻居）应放弃筑巢" }
+      ],
+      "hints": [
+        "第一步：统计矩阵内所有 1 的和。你可以使用嵌套循环，或者巧妙利用 Python 的 sum() 函数！",
+        "第二步：注意 neighborhood[1][1] 是当前智能体所在的中心格。虽然根据场景规定，当前位置总是 0，但为了最严谨的物理鲁棒性，建议排除它：brick_count = sum(sum(row) for row in neighborhood) - neighborhood[1][1]。",
+        "第三步：如果 brick_count 落在区间 [2, 4] 内（包含 2 和 4），返回 True，否则返回 False。你可以直接写出更具 Python 韵味的表达方式：return 2 <= brick_count <= 4"
+      ],
+      "solution": "def should_deposit(neighborhood):\n    brick_count = sum(sum(row) for row in neighborhood) - neighborhood[1][1]\n    return 2 <= brick_count <= 4",
+      "teacherActions": [
+        { "id": "act1", "type": "speech", "content": "现在，编写局部规则。点击仿真按钮，亲眼看一看自组织（Self-Organization）的奇迹！" }
+      ]
+    }
+    </script>
+
+    <!-- Business Logic & Pyodide Execution Pipeline -->
+    <script>
+        // Init Global State
+        let pyodide = null;
+        let editor = null;
+        let hintsRevealedCount = 0;
+        let simHistory = [];
+        let simIntervalId = null;
+        let currentFrame = 0;
+        let isSimulating = false;
+
+        const widgetConfig = JSON.parse(document.getElementById('widget-configuration').textContent);
+
+        // Hints Array
+        const hints = widgetConfig.hints;
+
+        // CodeMirror Setup
+        window.addEventListener('DOMContentLoaded', () => {
+            editor = CodeMirror.fromTextArea(document.getElementById('code-editor-target'), {
+                mode: 'python',
+                theme: 'material-ocean',
+                lineNumbers: true,
+                indentUnit: 4,
+                tabSize: 4,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                viewportMargin: Infinity
+            });
+            editor.setValue(widgetConfig.starterCode);
+
+            initPyodide();
+            setupInteractiveEvents();
+        });
+
+        // Initialize Pyodide with structured indicators
+        async function initPyodide() {
+            const loaderStatus = document.getElementById('loader-status');
+            const loaderBar = document.getElementById('loader-bar');
+
+            try {
+                loaderStatus.textContent = "1/3 正在加载 WebAssembly 核心组件...";
+                loaderBar.style.width = "30%";
+                
+                pyodide = await loadPyodide();
+                
+                loaderStatus.textContent = "2/3 初始化 Python 运行容器...";
+                loaderBar.style.width = "70%";
+
+                // Import essential math/json modules in Pyodide
+                await pyodide.runPythonAsync(`
+                    import sys
+                    import io
+                    import json
+                `);
+
+                loaderStatus.textContent = "3/3 仿真环境编译完成！";
+                loaderBar.style.width = "100%";
+
+                setTimeout(() => {
+                    document.getElementById('loader-overlay').classList.add('opacity-0', 'pointer-events-none');
+                    document.getElementById('runtime-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> 仿真解释器就绪';
+                    document.getElementById('runtime-indicator').className = "text-emerald-400 flex items-center gap-1.5";
+                    
+                    // Enable action buttons
+                    document.getElementById('run-user-btn').removeAttribute('disabled');
+                    document.getElementById('verify-test-btn').removeAttribute('disabled');
+                    
+                    clearConsole();
+                    appendToConsole("Lattice Swarm (格点蜂群框架) v1.0 成功加载！", "success");
+                    appendToConsole("请在右侧编辑器中编写 should_deposit 逻辑，并执行测试。");
+                }, 500);
+
+            } catch (err) {
+                console.error(err);
+                loaderStatus.textContent = "环境初始化失败，请刷新重试！" + err.message;
+                loaderStatus.classList.add('text-rose-500');
+            }
+        }
+
+        // Setup UI interactive elements
+        function setupInteractiveEvents() {
+            // Tab Controls
+            const tabBtnConcept = document.getElementById('tab-btn-concept');
+            const tabBtnSim = document.getElementById('tab-btn-sim');
+            const tabContentConcept = document.getElementById('tab-content-concept');
+            const tabContentSim = document.getElementById('tab-content-sim');
+
+            tabBtnConcept.addEventListener('click', () => {
+                tabBtnConcept.className = "flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all text-cyan-400 bg-slate-950 shadow-inner";
+                tabBtnSim.className = "flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-slate-200";
+                tabContentConcept.classList.remove('hidden');
+                tabContentSim.classList.add('hidden');
+            });
+
+            tabBtnSim.addEventListener('click', () => {
+                tabBtnSim.className = "flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all text-cyan-400 bg-slate-950 shadow-inner";
+                tabBtnConcept.className = "flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-slate-200";
+                tabContentSim.classList.remove('hidden');
+                tabContentConcept.classList.add('hidden');
+                // Auto resize or trigger canvas display
+                drawDefaultSimGrid();
+            });
+
+            // Hints Progressive Display
+            const hintBtn = document.getElementById('hint-trigger-btn');
+            const hintBtnText = document.getElementById('hint-btn-text');
+            const hintsArea = document.getElementById('hints-display-area');
+
+            hintBtn.addEventListener('click', () => {
+                if (hintsRevealedCount < hints.length) {
+                    hintsArea.classList.remove('hidden');
+                    const hintDiv = document.createElement('div');
+                    hintDiv.className = "bg-slate-950 border border-slate-800 p-3 rounded text-xs text-slate-300 leading-relaxed transition-all duration-300 transform translate-y-1 animate-fade-in";
+                    hintDiv.innerHTML = `<span class="text-cyan-400 font-bold block mb-1">提示 ${hintsRevealedCount + 1}:</span> ${hints[hintsRevealedCount]}`;
+                    hintsArea.appendChild(hintDiv);
+                    
+                    hintsRevealedCount++;
+                    if (hintsRevealedCount === hints.length) {
+                        hintBtnText.textContent = "提示已全部展开";
+                        hintBtn.setAttribute('disabled', 'true');
+                        hintBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        hintBtnText.textContent = `获取下一个提示 (${hintsRevealedCount}/${hints.length})`;
+                    }
+                }
+            });
+
+            // Action Buttons
+            document.getElementById('run-user-btn').addEventListener('click', runUserCode);
+            document.getElementById('verify-test-btn').addEventListener('click', runUnitTests);
+            document.getElementById('reset-code-btn').addEventListener('click', () => {
+                if(confirm("确定要将代码恢复为初始模板吗？此操作会覆盖你当前编写的内容。")) {
+                    editor.setValue(widgetConfig.starterCode);
+                    appendToConsole("代码已被恢复为初始模块。");
+                }
+            });
+
+            // Simulation play triggers
+            document.getElementById('sim-play-btn').addEventListener('click', toggleSimulation);
+            document.getElementById('sim-reset-btn').addEventListener('click', resetSimulation);
+        }
+
+        // Terminal Output Helpers
+        function appendToConsole(msg, type = 'info') {
+            const consoleEl = document.getElementById('console-output');
+            const colorClass = type === 'error' ? 'text-red-400' : (type === 'success' ? 'text-emerald-400' : 'text-slate-300');
+            consoleEl.innerHTML += `<div class="${colorClass} font-mono text-xs mb-1.5">> ${msg}</div>`;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+        }
+
+        // Run user's raw python script with stdout capturing
+        async function runUserCode() {
+            if (!pyodide) return;
+            appendToConsole("准备启动微观行为编译器...", "info");
+            const code = editor.getValue();
+            
+            try {
+                // EXTREMELY CRITICAL: Set stdout capturing properly before each invocation
+                await pyodide.runPythonAsync(`
+                    import sys
+                    import io
+                    sys.stdout = io.StringIO()
+                `);
+                
+                await pyodide.runPythonAsync(code);
+                
+                const output = pyodide.runPython('sys.stdout.getvalue()');
+                appendToConsole("编译无语法错误！", "success");
+                if (output.trim()) {
+                    appendToConsole("输出结果:");
+                    appendToConsole(output);
+                } else {
+                    appendToConsole("执行完成：未生成任何 stdout 标准输出值。可以在本地尝试 print() 测试数据。");
+                }
+            } catch (e) {
+                appendToConsole(`捕获运行时异常: ${e.message}`, "error");
+            }
+        }
+
+        // Execute precise unit testing matching Python challenge criteria
+        async function runUnitTests() {
+            if (!pyodide) return;
+            appendToConsole("正在执行测试套件验证机制...", "info");
+            
+            // Set up all badge elements back to processing state
+            const badges = document.querySelectorAll('.status-badge');
+            badges.forEach(b => b.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i>');
+
+            const userCode = editor.getValue();
+            
+            try {
+                // Execute user code in dynamic isolated context first
+                await pyodide.runPythonAsync(`
+                    import sys
+                    import io
+                    sys.stdout = io.StringIO()
+                `);
+                await pyodide.runPythonAsync(userCode);
+                
+                // Assert function is successfully defined
+                const hasFn = pyodide.runPython("type(should_deposit) == type(lambda: None) or type(should_deposit).__name__ == 'function'");
+                if (!hasFn) {
+                    throw new Error("找不到 should_deposit 函数实现。请确定函数名拼写无误。");
+                }
+
+                // Internal testing runner script
+                const testRunnerScript = `
+def _verify_sandbox_suite():
+    import json
+    test_cases = [
+        {"input": [[0,0,0],[0,0,0],[0,0,0]], "expected": False},
+        {"input": [[1,0,1],[0,0,0],[0,0,0]], "expected": True},
+        {"input": [[1,1,1],[0,0,0],[0,0,0]], "expected": True},
+        {"input": [[1,1,1],[1,0,1],[0,0,0]], "expected": False}
+    ]
+    results = []
+    for i, item in enumerate(test_cases):
+        try:
+            actual = should_deposit(item["input"])
+            # Ensure boolean conversion
+            actual_bool = bool(actual)
+            passed = actual_bool == item["expected"]
+            results.append({
+                "id": f"t{i+1}",
+                "passed": passed,
+                "actual": actual_bool,
+                "expected": item["expected"]
+            })
+        except Exception as e:
+            results.append({
+                "id": f"t{i+1}",
+                "passed": False,
+                "error": str(e)
+            })
+    return json.dumps(results)
+_verify_sandbox_suite()
+                `;
+
+                const testResultsJson = await pyodide.runPythonAsync(testRunnerScript);
+                const testResults = JSON.parse(testResultsJson);
+
+                let allPassed = true;
+                testResults.forEach(res => {
+                    const badge = document.querySelector(`#test-${res.id} .status-badge`);
+                    if (res.passed) {
+                        badge.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+                    } else {
+                        badge.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>';
+                        allPassed = false;
+                        if (res.error) {
+                            appendToConsole(`测试点 ${res.id} 崩溃: ${res.error}`, "error");
+                        } else {
+                            appendToConsole(`测试点 ${res.id} 匹配失败！期望值 ${res.expected}，实际返回了 ${res.actual}`, "error");
+                        }
+                    }
+                });
+
+                if (allPassed) {
+                    appendToConsole("恭喜！所有测试用例已全部通过！你的非直接协同筑巢决策算法成功闭环！🎉", "success");
+                    // Flash Tab Sim and guide user to watch physical simulation
+                    const tabBtnSim = document.getElementById('tab-btn-sim');
+                    tabBtnSim.classList.add('bg-cyan-500/20', 'animate-pulse');
+                    setTimeout(() => tabBtnSim.classList.remove('animate-pulse'), 3000);
+                } else {
+                    appendToConsole("测试未通过。请点击页面左下角的思路提示或仔细检查判断界限。", "error");
+                }
+
+            } catch (err) {
+                appendToConsole("执行测试套件时被强制终止: " + err.message, "error");
+                badges.forEach(b => b.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>');
+            }
+        }
+
+        // ==========================================
+        // SWARM SIMULATION CANVAS COMPONENT (PHYSICAL)
+        // ==========================================
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+        const resolution = 40;
+        const cellWidth = canvas.width / resolution;
+
+        function drawDefaultSimGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Light Grid
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 0.5;
+            for(let i=0; i<=resolution; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i*cellWidth, 0);
+                ctx.lineTo(i*cellWidth, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i*cellWidth);
+                ctx.lineTo(canvas.width, i*cellWidth);
+                ctx.stroke();
+            }
+
+            // Draw center hint
+            ctx.fillStyle = "#475569";
+            ctx.font = "11px monospace";
+            ctx.textAlign = "center";
+            ctx.fillText("等待算法加载，启动仿真...", canvas.width/2, canvas.height/2);
+        }
+
+        async function generateSimulationData() {
+            if (!pyodide) return null;
+            const code = editor.getValue();
+            
+            try {
+                // Run user code first to register should_deposit
+                await pyodide.runPythonAsync(code);
+
+                // Simulation orchestrator inside Pyodide (Runs in <30ms)
+                const pythonSimScript = `
+def _run_physics_sim():
+    import random
+    import json
+    
+    width, height = 40, 40
+    grid = [[0]*width for _ in range(height)]
+    
+    # Place localized seeds in the central zone of the grid
+    # This acts as nucleating agents to trigger Positive Feedback (正反馈) loops
+    for _ in range(30):
+        grid[random.randint(17, 23)][random.randint(17, 23)] = 1
+        
+    # Initialize agents at arbitrary positions
+    agents = [[random.randint(0, width-1), random.randint(0, height-1)] for _ in range(45)]
+    
+    frames = []
+    
+    # Simulate for 180 steps
+    for step in range(180):
+        # Walk and interact
+        for agent in agents:
+            # 8-connected coordinate movements
+            dx = random.choice([-1, 0, 1])
+            dy = random.choice([-1, 0, 1])
+            agent[0] = (agent[0] + dx) % width
+            agent[1] = (agent[1] + dy) % height
+            
+            ax, ay = agent[0], agent[1]
+            if grid[ay][ax] == 0:
+                # Compile 3x3 local neighborhood array
+                nb = [[0]*3 for _ in range(3)]
+                for dy_nb in [-1, 0, 1]:
+                    for dx_nb in [-1, 0, 1]:
+                        nx = (ax + dx_nb) % width
+                        ny = (ay + dy_nb) % height
+                        nb[dy_nb+1][dx_nb+1] = grid[ny][nx]
+                
+                try:
+                    # User's logic invocation
+                    if should_deposit(nb):
+                        grid[ay][ax] = 1
+                except Exception:
+                    # Silence inner evaluation failures to maintain frame loops
+                    pass
+                    
+        # Compress current frame to reduce memory and parsing overhead
+        bricks = []
+        for y in range(height):
+            for x in range(width):
+                if grid[y][x] == 1:
+                    bricks.append((x, y))
+                    
+        frames.append({
+            "bricks": bricks,
+            "agents": [list(a) for a in agents]
+        })
+        
+    return json.dumps(frames)
+_run_physics_sim()
+                `;
+
+                const resultsJson = await pyodide.runPythonAsync(pythonSimScript);
+                return JSON.parse(resultsJson);
+
+            } catch (err) {
+                appendToConsole("仿真运行时失败: " + err.message, "error");
+                return null;
+            }
+        }
+
+        async function toggleSimulation() {
+            const playBtn = document.getElementById('sim-play-btn');
+            const statusTxt = document.getElementById('sim-status-txt');
+
+            if (isSimulating) {
+                // Pause action
+                clearInterval(simIntervalId);
+                isSimulating = false;
+                playBtn.innerHTML = '<i class="fa-solid fa-play"></i> 继续仿真';
+                statusTxt.textContent = "仿真暂停。";
+            } else {
+                // If there's no simulation frames built yet, generate them dynamically
+                if (simHistory.length === 0) {
+                    statusTxt.textContent = "正在运用 Python 引擎生成 180 步物理动力学演化数据...";
+                    playBtn.setAttribute('disabled', 'true');
+                    
+                    const frames = await generateSimulationData();
+                    playBtn.removeAttribute('disabled');
+                    
+                    if (!frames) {
+                        statusTxt.textContent = "运行失败：算法中可能存在致命报错，请参考控制台日志。";
+                        return;
+                    }
+                    simHistory = frames;
+                    currentFrame = 0;
+                }
+
+                // Start animation play
+                isSimulating = true;
+                playBtn.innerHTML = '<i class="fa-solid fa-pause"></i> 暂停仿真';
+                statusTxt.textContent = "自组织筑巢模式运行中！感知、堆叠、模式相变...";
+
+                simIntervalId = setInterval(() => {
+                    if (currentFrame >= simHistory.length) {
+                        clearInterval(simIntervalId);
+                        isSimulating = false;
+                        playBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> 重新演化';
+                        statusTxt.textContent = "仿真完成！观察到了自组织微结构的成型与稳定性吗？";
+                        currentFrame = 0;
+                        simHistory = []; // Reset simulation cache for next iteration
+                        return;
+                    }
+
+                    renderFrame(simHistory[currentFrame]);
+                    currentFrame++;
+                }, 70); // Smooth fluid playback (~15fps)
+            }
+        }
+
+        function resetSimulation() {
+            clearInterval(simIntervalId);
+            isSimulating = false;
+            simHistory = [];
+            currentFrame = 0;
+            document.getElementById('sim-play-btn').innerHTML = '<i class="fa-solid fa-play"></i> 开始物理仿真';
+            document.getElementById('sim-status-txt').textContent = "仿真世界已重置。您可以根据新的参数重新注入规则！";
+            document.getElementById('stat-step').innerText = "0";
+            document.getElementById('stat-bricks').innerText = "0";
+            drawDefaultSimGrid();
+        }
+
+        function renderFrame(frameData) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Light Background Grid
+            ctx.strokeStyle = '#020617';
+            ctx.lineWidth = 0.5;
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid dividers
+            ctx.strokeStyle = '#0f172a';
+            for(let i=0; i<=resolution; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i*cellWidth, 0);
+                ctx.lineTo(i*cellWidth, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i*cellWidth);
+                ctx.lineTo(canvas.width, i*cellWidth);
+                ctx.stroke();
+            }
+
+            // Draw Nest Bricks (Teal/Cyan structures with soft outer glow effect)
+            ctx.fillStyle = '#06b6d4';
+            ctx.shadowColor = '#06b6d4';
+            ctx.shadowBlur = 3;
+            frameData.bricks.forEach(([x, y]) => {
+                ctx.fillRect(x * cellWidth + 1, y * cellWidth + 1, cellWidth - 1.5, cellWidth - 1.5);
+            });
+
+            // Draw Free-Moving Agents (Glowing amber particles)
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 5;
+            frameData.agents.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc((x + 0.5) * cellWidth, (y + 0.5) * cellWidth, cellWidth * 0.45, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Clear shadow styles for standard UI rendering path performance optimization
+            ctx.shadowBlur = 0;
+
+            // Live updates of numerical statistics
+            document.getElementById('stat-step').innerText = currentFrame + 1;
+            document.getElementById('stat-bricks').innerText = frameData.bricks.length;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>非直接协同与路径自选择仿真 | Path Optimization Stigmergy</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    .font-mono {
+      font-family: 'Fira Code', monospace;
+    }
+
+    /* Custom scrollbar for dark theme */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Range slider custom styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #1e293b;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #a78bfa;
+      transform: scale(1.2);
+    }
+    
+    /* Touch target helpers */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col lg:flex-row overflow-hidden">
+
+  <!-- Embedding Widget Configuration -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "path_optimization_stigmergy",
+    "description": "展示经典蚂蚁双桥实验与 Stigmergy（非直接协同）路径自组织过程。调节信息素蒸发率与路径长度比，探索系统的正反馈机制与分岔行为。",
+    "variables": [
+      { "name": "nest_to_food_distance_ratio", "label": "路径长度比 (B/A)", "min": 1.1, "max": 2.5, "default": 1.5, "unit": "x" },
+      { "name": "trail_evaporation_rate", "label": "信息素蒸发率", "min": 0.002, "max": 0.08, "default": 0.015, "unit": "/帧" },
+      { "name": "ant_flow_rate", "label": "蚂蚁流量", "min": 1, "max": 15, "default": 5, "unit": "只/秒" }
+    ],
+    "presets": [
+      {
+        "name": "最优自组织收敛",
+        "variables": { "nest_to_food_distance_ratio": 1.5, "trail_evaporation_rate": 0.015, "ant_flow_rate": 6 }
+      },
+      {
+        "name": "协同中断 (蒸发过快)",
+        "variables": { "nest_to_food_distance_ratio": 1.5, "trail_evaporation_rate": 0.07, "ant_flow_rate": 3 }
+      },
+      {
+        "name": "历史锁定 (蒸发过慢)",
+        "variables": { "nest_to_food_distance_ratio": 1.6, "trail_evaporation_rate": 0.002, "ant_flow_rate": 8 }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Left Sidebar: Controls & Science Explainer -->
+  <aside id="controls" class="w-full lg:w-[420px] bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col max-h-[45vh] lg:max-h-screen overflow-y-auto shrink-0 z-10 select-none">
+    
+    <!-- Title Section -->
+    <div class="p-5 border-b border-slate-800 shrink-0">
+      <div class="flex items-center space-x-2">
+        <span class="px-2 py-0.5 text-xs font-semibold bg-violet-500/10 text-violet-400 rounded border border-violet-500/20">双桥实验</span>
+        <span class="text-xs text-slate-400">Dynamic Simulation</span>
+      </div>
+      <h1 class="text-xl font-bold mt-1 text-slate-100 flex items-center gap-2">
+        路径自选择与非直接协同
+      </h1>
+      <p class="text-xs text-slate-400 mt-1 font-mono">Stigmergy & Path Optimization</p>
+    </div>
+
+    <!-- Parameter Controls -->
+    <div class="p-5 space-y-6 shrink-0">
+      <div class="space-y-4">
+        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">系统参数调节</h3>
+        
+        <!-- Parameter 1: Distance Ratio -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300 font-medium flex items-center gap-1.5">
+              路径长度比 (B / A)
+              <span class="text-xs text-slate-500 font-mono">(Distance Ratio)</span>
+            </span>
+            <span id="nest_to_food_distance_ratio-display" class="font-mono text-violet-400 font-semibold">1.50x</span>
+          </div>
+          <input 
+            type="range" 
+            id="nest_to_food_distance_ratio-slider" 
+            data-var="nest_to_food_distance_ratio"
+            min="1.1" 
+            max="2.5" 
+            step="0.1" 
+            value="1.5" 
+            class="w-full touch-target"
+          >
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+            <span>1.1x (近乎对称)</span>
+            <span>2.5x (长路径极长)</span>
+          </div>
+        </div>
+
+        <!-- Parameter 2: Evaporation Rate -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300 font-medium flex items-center gap-1.5">
+              信息素蒸发率
+              <span class="text-xs text-slate-500 font-mono">(Evaporation)</span>
+            </span>
+            <span id="trail_evaporation_rate-display" class="font-mono text-cyan-400 font-semibold">1.5%</span>
+          </div>
+          <input 
+            type="range" 
+            id="trail_evaporation_rate-slider" 
+            data-var="trail_evaporation_rate"
+            min="0.002" 
+            max="0.08" 
+            step="0.001" 
+            value="0.015" 
+            class="w-full touch-target"
+          >
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+            <span>0.2% (慢/环境极强记忆)</span>
+            <span>8.0% (快/瞬间遗忘)</span>
+          </div>
+        </div>
+
+        <!-- Parameter 3: Ant Flow Rate -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300 font-medium flex items-center gap-1.5">
+              蚂蚁流量
+              <span class="text-xs text-slate-500 font-mono">(Ant Flow Rate)</span>
+            </span>
+            <span id="ant_flow_rate-display" class="font-mono text-emerald-400 font-semibold">5 只/秒</span>
+          </div>
+          <input 
+            type="range" 
+            id="ant_flow_rate-slider" 
+            data-var="ant_flow_rate"
+            min="1" 
+            max="15" 
+            step="1" 
+            value="5" 
+            class="w-full touch-target"
+          >
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+            <span>1 只/秒 (低密度)</span>
+            <span>15 只/秒 (高频流)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets Area -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">实验场景预设 (Presets)</h3>
+        <div class="grid grid-cols-1 gap-2">
+          <button 
+            onclick="applyPreset('optimal')" 
+            id="preset-optimal-btn"
+            class="text-left p-3 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800/60 transition-all cursor-pointer group touch-target"
+          >
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-emerald-400 group-hover:text-emerald-300">💡 场景 A：最优自组织收敛</span>
+              <span class="text-[10px] text-slate-500">经典双桥</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">蒸发率适中，群体通过正反馈自发锁死在极短路径，展现极高的分布式协同效率。</p>
+          </button>
+          
+          <button 
+            onclick="applyPreset('fast_evap')" 
+            id="preset-fast_evap-btn"
+            class="text-left p-3 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800/60 transition-all cursor-pointer group touch-target"
+          >
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-rose-400 group-hover:text-rose-300">⚠️ 场景 B：协同中断 (遗忘过快)</span>
+              <span class="text-[10px] text-slate-500">链条断裂</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">蒸发率过高导致“分布式记忆”无法持久，正反馈难以形成，蚂蚁始终处于盲目摸索状态。</p>
+          </button>
+
+          <button 
+            onclick="applyPreset('slow_evap')" 
+            id="preset-slow_evap-btn"
+            class="text-left p-3 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800/60 transition-all cursor-pointer group touch-target"
+          >
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-amber-400 group-hover:text-amber-300">⚡ 场景 C：次优锁死 (历史包袱)</span>
+              <span class="text-[10px] text-slate-500">分岔 Trap</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">蒸发过慢使历史痕迹无法消除。若前期由于偶然涨落锁定了长路径，系统便无法再次纠偏。</p>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Science Corner / Educational Insights -->
+    <div class="p-5 border-t border-slate-800 bg-slate-900/40 mt-auto shrink-0">
+      <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">学理观察哨 (Observation)</h3>
+      <div class="space-y-2 text-xs text-slate-400 leading-relaxed">
+        <p>
+          1. <strong class="text-violet-400">非直接协同 (Stigmergy)</strong>: 一种分布式机制，环境（信息素）扮演了非中心化的存储与计算介质。
+        </p>
+        <p>
+          2. <strong class="text-cyan-400">正反馈 (Positive Feedback)</strong>: 极短路径的高通过频率加速了信息素沉积，强化了后继个体的偏好。
+        </p>
+        <p>
+          3. <strong class="text-amber-400">分岔现象 (Bifurcation)</strong>: 系统的对称破缺。极低的蒸发率容易诱发“次优选择”，锁死在效率低下的轨道。
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Panel: Visualization & Analytics -->
+  <main class="flex-1 flex flex-col min-h-[55vh] lg:h-screen p-4 lg:p-6 overflow-y-auto space-y-4">
+    
+    <!-- Top Bar: Quick Stats & Primary Action Button -->
+    <div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl shrink-0">
+      <div class="flex items-center space-x-4">
+        <button 
+          id="main-btn" 
+          onclick="toggleSimulation()" 
+          class="px-6 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 font-semibold text-sm shadow-lg shadow-violet-900/20 active:scale-95 transition-all text-white cursor-pointer select-none touch-target"
+        >
+          启动
+        </button>
+        <button 
+          id="reset-btn" 
+          onclick="resetSimulation()" 
+          class="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 font-medium text-sm transition-all text-slate-300 cursor-pointer select-none touch-target"
+        >
+          重置
+        </button>
+      </div>
+      
+      <!-- Metrics Row -->
+      <div class="flex flex-wrap gap-4 text-xs">
+        <div class="bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+          <span class="text-slate-500 block">食物采集成功 (Trips)</span>
+          <span id="stat-completed" class="font-mono text-sm font-semibold text-emerald-400">0 次</span>
+        </div>
+        <div class="bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+          <span class="text-slate-500 block">短路径偏好率 (Ratio)</span>
+          <span id="stat-preference" class="font-mono text-sm font-semibold text-cyan-400">50.0%</span>
+        </div>
+        <div class="bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+          <span class="text-slate-500 block">系统熵 (System Entropy)</span>
+          <span id="stat-entropy" class="font-mono text-sm font-semibold text-violet-400">1.000</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Visualizer (The Canvas) -->
+    <div class="flex-1 bg-slate-900 border border-slate-800/80 rounded-2xl relative min-h-[320px] lg:min-h-0 flex flex-col overflow-hidden">
+      <!-- Overlay Title -->
+      <div class="absolute top-4 left-4 z-10 flex items-center space-x-2 pointer-events-none select-none">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" id="status-dot"></span>
+        <span class="text-xs font-bold text-slate-300 uppercase tracking-wide bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-slate-800" id="status-text">
+          等待启动
+        </span>
+      </div>
+
+      <!-- Live state tag -->
+      <div class="absolute top-4 right-4 z-10 pointer-events-none select-none">
+        <span id="convergence-badge" class="text-[11px] font-bold px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-800 text-slate-400">
+          状态：随机探索
+        </span>
+      </div>
+
+      <!-- Canvas Element -->
+      <div class="flex-1 w-full h-full relative" id="canvas-container">
+        <canvas id="sim-canvas" class="absolute inset-0 block w-full h-full"></canvas>
+      </div>
+    </div>
+
+    <!-- Analytics Dashboard: Choice History Chart -->
+    <div class="h-[180px] bg-slate-900 border border-slate-800/80 rounded-2xl p-4 shrink-0 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+        <span class="font-bold text-slate-400 flex items-center gap-1.5">
+          📊 路径选择演变特征曲线 
+          <span class="font-normal text-slate-500">(Path Choice Bifurcation Curve)</span>
+        </span>
+        <span class="font-mono text-[10px] text-slate-500">时序跨度: 最近 300 周期</span>
+      </div>
+      <div class="flex-1 relative mt-2" id="chart-container">
+        <canvas id="chart-canvas" class="absolute inset-0 block w-full h-full"></canvas>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Complete Interactive JS Engine -->
+  <script>
+    // State Space
+    const state = {
+      running: false,
+      paused: false,
+      ended: false,
+      
+      // Sliders / Parameters
+      nest_to_food_distance_ratio: 1.5,
+      trail_evaporation_rate: 0.015,
+      ant_flow_rate: 5,
+
+      // Statistics
+      completedTrips: 0,
+      antsSelectedA: 0,
+      antsSelectedB: 0,
+      currentRatioA: 0.5,
+      
+      // Simulation Loop Management
+      lastTime: 0,
+      spawnTimer: 0,
+      goalDeliveries: 500, // Completing 500 deliveries ends the trial beautifully
+    };
+
+    // Canvas references
+    const simCanvas = document.getElementById('sim-canvas');
+    const simCtx = simCanvas.getContext('2d');
+    const chartCanvas = document.getElementById('chart-canvas');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    // Dynamic sizing helper
+    let viewW = 0, viewH = 0;
+    let chartW = 0, chartH = 0;
+
+    // Simulation Coordinates (Normalized 0.0 to 1.0 representation for absolute viewport safety)
+    const nestPos = { x: 0.15, y: 0.5 };
+    const foodPos = { x: 0.85, y: 0.5 };
+
+    // Path structures
+    let pathA = []; // Short Path (Top)
+    let pathB = []; // Long Path (Bottom)
+    let pheromonesA = [];
+    let pheromonesB = [];
+
+    // Entities
+    let ants = [];
+    let choiceHistory = []; // Rolling selection ratio (last 300 points)
+    let recentSpawnsChoice = []; // Sliding window of choices (1 = A, 0 = B)
+
+    // Base sensory settings
+    const basePheromoneValue = 0.05;
+    const exploreK = 0.2; // Exploration constant
+    const alpha = 2.0;    // Non-linear choice scaling (exponent)
+
+    // Init function on load
+    window.addEventListener('load', () => {
+      initSliders();
+      setupLayout();
+      resetSimulation();
+      animate(0);
+    });
+
+    // Setup High-DPI support and observers
+    function setupLayout() {
+      const simObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          const dpr = window.devicePixelRatio || 1;
+          simCanvas.width = entry.contentRect.width * dpr;
+          simCanvas.height = entry.contentRect.height * dpr;
+          simCanvas.style.width = entry.contentRect.width + 'px';
+          simCanvas.style.height = entry.contentRect.height + 'px';
+          viewW = entry.contentRect.width;
+          viewH = entry.contentRect.height;
+          simCtx.scale(dpr, dpr);
+        }
+      });
+      simObserver.observe(document.getElementById('canvas-container'));
+
+      const chartObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          const dpr = window.devicePixelRatio || 1;
+          chartCanvas.width = entry.contentRect.width * dpr;
+          chartCanvas.height = entry.contentRect.height * dpr;
+          chartCanvas.style.width = entry.contentRect.width + 'px';
+          chartCanvas.style.height = entry.contentRect.height + 'px';
+          chartW = entry.contentRect.width;
+          chartH = entry.contentRect.height;
+          chartCtx.scale(dpr, dpr);
+        }
+      });
+      chartObserver.observe(document.getElementById('chart-container'));
+    }
+
+    // Initialize UI controls
+    function initSliders() {
+      const sliders = [
+        { name: 'nest_to_food_distance_ratio', displayId: 'nest_to_food_distance_ratio-display', unit: 'x', format: v => parseFloat(v).toFixed(2) },
+        { name: 'trail_evaporation_rate', displayId: 'trail_evaporation_rate-display', unit: '%', format: v => (v * 100).toFixed(1) },
+        { name: 'ant_flow_rate', displayId: 'ant_flow_rate-display', unit: ' 只/秒', format: v => parseInt(v) }
+      ];
+
+      sliders.forEach(s => {
+        const input = document.getElementById(`${s.name}-slider`);
+        const display = document.getElementById(s.displayId);
+        
+        if (input) {
+          input.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            state[s.name] = val;
+            display.textContent = `${s.format(val)}${s.unit}`;
+            
+            // On runtime variables shift, adapt paths or reset parameters
+            if (s.name === 'nest_to_food_distance_ratio') {
+              // Recalculating ratio requires rebuilding layout
+              rebuildPaths();
+            }
+          });
+        }
+      });
+    }
+
+    // Apply scenarios (Presets)
+    function applyPreset(presetType) {
+      const presets = {
+        optimal: { nest_to_food_distance_ratio: 1.5, trail_evaporation_rate: 0.015, ant_flow_rate: 6 },
+        fast_evap: { nest_to_food_distance_ratio: 1.5, trail_evaporation_rate: 0.07, ant_flow_rate: 3 },
+        slow_evap: { nest_to_food_distance_ratio: 1.6, trail_evaporation_rate: 0.002, ant_flow_rate: 8 }
+      };
+
+      const p = presets[presetType];
+      if (!p) return;
+
+      // Update state and slider interfaces
+      Object.entries(p).forEach(([key, value]) => {
+        state[key] = value;
+        const slider = document.getElementById(`${key}-slider`);
+        if (slider) {
+          slider.value = value;
+          slider.dispatchEvent(new Event('input'));
+        }
+      });
+
+      // Highlight target preset button briefly
+      const btn = document.getElementById(`preset-${presetType}-btn`);
+      if (btn) {
+        btn.classList.add('border-violet-500', 'bg-violet-950/20');
+        setTimeout(() => {
+          btn.classList.remove('border-violet-500', 'bg-violet-950/20');
+        }, 800);
+      }
+
+      resetSimulation();
+      // Auto run on choosing preset
+      toggleSimulation(true);
+    }
+
+    // Equidistant point sampler for paths to ensure clean, constant ant stepping speeds
+    function generateEquidistantPath(startX, startY, endX, endY, bendHeight, spacing = 0.012) {
+      let rawPoints = [];
+      const steps = 350;
+      
+      // Generate standard Bezier curvature representation
+      for (let i = 0; i <= steps; i++) {
+        let t = i / steps;
+        let x = startX + (endX - startX) * t;
+        let y = startY + (endY - startY) * t;
+        
+        let dx = endX - startX;
+        let dy = endY - startY;
+        let len = Math.hypot(dx, dy);
+        let px = -dy / len;
+        let py = dx / len;
+        
+        let disp = bendHeight * Math.sin(Math.PI * t);
+        rawPoints.push({ x: x + px * disp, y: y + py * disp });
+      }
+
+      // Re-sample point indices equidistantly
+      let eqPoints = [rawPoints[0]];
+      let lastPt = rawPoints[0];
+      let accum = 0;
+
+      for (let i = 1; i < rawPoints.length; i++) {
+        let pt = rawPoints[i];
+        let d = Math.hypot(pt.x - lastPt.x, pt.y - lastPt.y);
+        accum += d;
+        if (accum >= spacing) {
+          eqPoints.push(pt);
+          lastPt = pt;
+          accum = 0;
+        }
+      }
+      
+      if (Math.hypot(eqPoints[eqPoints.length - 1].x - endX, eqPoints[eqPoints.length - 1].y - endY) > spacing / 2) {
+        eqPoints.push({ x: endX, y: endY });
+      }
+      return eqPoints;
+    }
+
+    // Build or adjust current geometric trail layouts
+    function rebuildPaths() {
+      // Short path curves upward, fixed curvature
+      pathA = generateEquidistantPath(nestPos.x, nestPos.y, foodPos.x, foodPos.y, -0.12);
+      
+      // Long path curves downward, curvature depends dynamically on user distance ratio input
+      // Ratio of 1.0 would match Path A visually; higher ratio means wider detour path loop
+      const bHeight = 0.12 + 0.38 * (state.nest_to_food_distance_ratio - 1.0);
+      pathB = generateEquidistantPath(nestPos.x, nestPos.y, foodPos.x, foodPos.y, bHeight);
+
+      // Interpolate and preserve pheromone buffers safely
+      const initPheromone = Array(pathA.length).fill(basePheromoneValue);
+      const initPheromoneB = Array(pathB.length).fill(basePheromoneValue);
+
+      pheromonesA = initPheromone;
+      pheromonesB = initPheromoneB;
+    }
+
+    // Single central Reset Function
+    function resetSimulation() {
+      state.running = false;
+      state.paused = false;
+      state.ended = false;
+      state.completedTrips = 0;
+      state.antsSelectedA = 0;
+      state.antsSelectedB = 0;
+      state.currentRatioA = 0.5;
+      state.spawnTimer = 0;
+
+      ants = [];
+      choiceHistory = [];
+      recentSpawnsChoice = Array(40).fill(0.5); // Warm up sliding window with an equal spread
+
+      rebuildPaths();
+      updateButtonStates();
+      
+      // Force instant diagnostic draw
+      drawSimulationScene();
+      drawDiagnosticsChart();
+    }
+
+    // Handles play/pause toggle states securely
+    function toggleSimulation(forceRun = false) {
+      if (state.ended) {
+        resetSimulation();
+        forceRun = true;
+      }
+
+      if (forceRun) {
+        state.running = true;
+        state.paused = false;
+      } else {
+        if (!state.running) {
+          state.running = true;
+          state.paused = false;
+        } else {
+          state.running = false;
+          state.paused = true;
+        }
+      }
+
+      updateButtonStates();
+    }
+
+    // Track button colors and copy labels dynamically based on explicit running state
+    function updateButtonStates() {
+      const mainBtn = document.getElementById('main-btn');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+
+      if (state.ended) {
+        mainBtn.textContent = '重新开始';
+        mainBtn.className = 'px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm shadow-lg shadow-indigo-900/20 active:scale-95 transition-all text-white cursor-pointer select-none touch-target';
+        
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-violet-500';
+        statusText.textContent = '任务已完成';
+      } else if (state.running) {
+        mainBtn.textContent = '暂停';
+        mainBtn.className = 'px-6 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 font-semibold text-sm shadow-lg shadow-amber-900/20 active:scale-95 transition-all text-white cursor-pointer select-none touch-target';
+        
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+        statusText.textContent = '仿真运行中';
+      } else if (state.paused) {
+        mainBtn.textContent = '继续';
+        mainBtn.className = 'px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm shadow-lg shadow-emerald-900/20 active:scale-95 transition-all text-white cursor-pointer select-none touch-target';
+        
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+        statusText.textContent = '仿真已暂停';
+      } else {
+        mainBtn.textContent = '启动';
+        mainBtn.className = 'px-6 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 font-semibold text-sm shadow-lg shadow-violet-900/20 active:scale-95 transition-all text-white cursor-pointer select-none touch-target';
+        
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
+        statusText.textContent = '等待启动';
+      }
+    }
+
+    // Decision function based on standard double-bridge pheromone probabilities
+    function choosePathAtNest() {
+      // Evaluate first few points of each trail to decide direction at fork
+      const sensingLength = 8;
+      let scoreA = 0, scoreB = 0;
+
+      for (let i = 0; i < sensingLength; i++) {
+        scoreA += pheromonesA[i];
+        scoreB += pheromonesB[i];
+      }
+      
+      scoreA /= sensingLength;
+      scoreB /= sensingLength;
+
+      // Probability formulation (Double-Bridge non-linear positive reinforcement equation)
+      const weightA = Math.pow(exploreK + scoreA, alpha);
+      const weightB = Math.pow(exploreK + scoreB, alpha);
+      const probA = weightA / (weightA + weightB);
+
+      return Math.random() < probA ? 'A' : 'B';
+    }
+
+    // Spawn and update logic on tick
+    function updateSimulation(dt) {
+      if (!state.running || state.paused || state.ended) return;
+
+      // Spawn manager (Ant flow rate controls tick intervals)
+      state.spawnTimer += dt;
+      const spawnInterval = 1.0 / state.ant_flow_rate;
+      if (state.spawnTimer >= spawnInterval) {
+        state.spawnTimer -= spawnInterval;
+        
+        const pathType = choosePathAtNest();
+        const pathRef = pathType === 'A' ? pathA : pathB;
+        
+        // Push fresh ant particle
+        ants.push({
+          pathType: pathType,
+          index: 0,
+          direction: 1, // 1 = going to Food, -1 = carrying food back to Nest
+          speed: 1.0,  // steps traversed along the discrete array per tick
+          hasFood: false,
+          colorPulse: Math.random() * Math.PI
+        });
+
+        // Record choices to update metrics window
+        recentSpawnsChoice.push(pathType === 'A' ? 1.0 : 0.0);
+        if (recentSpawnsChoice.length > 50) recentSpawnsChoice.shift();
+      }
+
+      // Update Pheromones: Evaporation Dynamics
+      const decay = state.trail_evaporation_rate;
+      for (let i = 0; i < pheromonesA.length; i++) {
+        pheromonesA[i] = pheromonesA[i] * (1 - decay) + basePheromoneValue * decay;
+      }
+      for (let i = 0; i < pheromonesB.length; i++) {
+        pheromonesB[i] = pheromonesB[i] * (1 - decay) + basePheromoneValue * decay;
+      }
+
+      // Localized spatial diffusion (molecular trails bleed slightly, smoothing visuals)
+      diffuseTrails(pheromonesA);
+      diffuseTrails(pheromonesB);
+
+      // Process Ant Particles
+      for (let i = ants.length - 1; i >= 0; i--) {
+        const ant = ants[i];
+        const currentPath = ant.pathType === 'A' ? pathA : pathB;
+        const currentPheromone = ant.pathType === 'A' ? pheromonesA : pheromonesB;
+
+        // Advance along point series
+        ant.index += ant.direction * ant.speed;
+        
+        // Pheromone deposition
+        // Returning ants deposit higher levels because they found resources
+        const deposit = ant.hasFood ? 2.5 : 1.0;
+        const indexRounded = Math.min(Math.max(Math.round(ant.index), 0), currentPath.length - 1);
+        currentPheromone[indexRounded] = Math.min(currentPheromone[indexRounded] + deposit, 65.0);
+
+        // State machine boundary checks
+        if (ant.direction === 1 && ant.index >= currentPath.length - 1) {
+          // Reached food source
+          ant.direction = -1;
+          ant.index = currentPath.length - 1;
+          ant.hasFood = true;
+        } else if (ant.direction === -1 && ant.index <= 0) {
+          // Reached Nest successfully (roundtrip completed!)
+          state.completedTrips++;
+          
+          if (ant.pathType === 'A') state.antsSelectedA++;
+          else state.antsSelectedB++;
+
+          // Kill particle
+          ants.splice(i, 1);
+        }
+      }
+
+      // System Performance Analytics
+      const totalChoices = recentSpawnsChoice.length;
+      const countA = recentSpawnsChoice.reduce((sum, val) => sum + val, 0);
+      state.currentRatioA = totalChoices > 0 ? countA / totalChoices : 0.5;
+
+      // Log to rolling history for chart display
+      if (Math.random() < 0.25) { // sub-sampled updates for clean performance curves
+        choiceHistory.push(state.currentRatioA);
+        if (choiceHistory.length > 300) {
+          choiceHistory.shift();
+        }
+      }
+
+      // Check Termination Criteria
+      if (state.completedTrips >= state.goalDeliveries) {
+        state.ended = true;
+        state.running = false;
+        updateButtonStates();
+      }
+    }
+
+    // Standard spatial diffusion step
+    function diffuseTrails(arr) {
+      const temp = [...arr];
+      const rate = 0.12; // spatial transfer rate
+      for (let i = 1; i < arr.length - 1; i++) {
+        arr[i] = temp[i] * (1 - 2 * rate) + temp[i - 1] * rate + temp[i + 1] * rate;
+      }
+    }
+
+    // Convert normalized coordinates to canvas viewport scale safely
+    function toCanvasCoords(pt, w, h) {
+      const marginX = w * 0.1;
+      const marginY = h * 0.12;
+      const playableW = w - 2 * marginX;
+      const playableH = h - 2 * marginY;
+      
+      return {
+        x: marginX + pt.x * playableW,
+        y: marginY + pt.y * playableH
+      };
+    }
+
+    // Render Scene Graphics
+    function drawSimulationScene() {
+      // Clear with soft background
+      simCtx.fillStyle = '#090d16';
+      simCtx.fillRect(0, 0, viewW, viewH);
+
+      // Grid helper lines
+      simCtx.strokeStyle = '#111827';
+      simCtx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < viewW; x += gridSize) {
+        simCtx.beginPath();
+        simCtx.moveTo(x, 0);
+        simCtx.lineTo(x, viewH);
+        simCtx.stroke();
+      }
+      for (let y = 0; y < viewH; y += gridSize) {
+        simCtx.beginPath();
+        simCtx.moveTo(0, y);
+        simCtx.lineTo(viewW, y);
+        simCtx.stroke();
+      }
+
+      if (viewW <= 0 || viewH <= 0) return;
+
+      // Render Pheromone Trails
+      drawSingleTrail(pathA, pheromonesA, '#06b6d4', '#22d3ee'); // Teal for short optimal path
+      drawSingleTrail(pathB, pheromonesB, '#a855f7', '#c084fc'); // Purple for long suboptimal path
+
+      // Render Nest & Food Source locations
+      const nestPix = toCanvasCoords(nestPos, viewW, viewH);
+      const foodPix = toCanvasCoords(foodPos, viewW, viewH);
+
+      // Nest visual
+      simCtx.shadowBlur = 12;
+      simCtx.shadowColor = 'rgba(245, 158, 11, 0.4)';
+      simCtx.beginPath();
+      simCtx.arc(nestPix.x, nestPix.y, 22, 0, Math.PI * 2);
+      simCtx.fillStyle = '#1e1b4b';
+      simCtx.fill();
+      simCtx.strokeStyle = '#f59e0b';
+      simCtx.lineWidth = 2.5;
+      simCtx.stroke();
+      
+      // Nest inner core
+      simCtx.beginPath();
+      simCtx.arc(nestPix.x, nestPix.y, 8, 0, Math.PI * 2);
+      simCtx.fillStyle = '#f59e0b';
+      simCtx.fill();
+
+      // Nest Tag Text
+      simCtx.shadowBlur = 0;
+      simCtx.fillStyle = '#fef08a';
+      simCtx.font = 'bold 11px Inter, sans-serif';
+      simCtx.textAlign = 'center';
+      simCtx.fillText('蚁巢 (Nest)', nestPix.x, nestPix.y - 30);
+
+      // Food Source visual
+      simCtx.shadowBlur = 12;
+      simCtx.shadowColor = 'rgba(16, 185, 129, 0.4)';
+      simCtx.beginPath();
+      simCtx.arc(foodPix.x, foodPix.y, 22, 0, Math.PI * 2);
+      simCtx.fillStyle = '#064e3b';
+      simCtx.fill();
+      simCtx.strokeStyle = '#10b981';
+      simCtx.lineWidth = 2.5;
+      simCtx.stroke();
+
+      // Food Source inner details
+      simCtx.beginPath();
+      simCtx.arc(foodPix.x, foodPix.y, 8, 0, Math.PI * 2);
+      simCtx.fillStyle = '#10b981';
+      simCtx.fill();
+
+      // Food Tag Text
+      simCtx.shadowBlur = 0;
+      simCtx.fillStyle = '#a7f3d0';
+      simCtx.fillText('资源 (Food)', foodPix.x, foodPix.y - 30);
+
+      // Render active ant particles
+      ants.forEach(ant => {
+        const pathRef = ant.pathType === 'A' ? pathA : pathB;
+        const indexInt = Math.floor(ant.index);
+        const indexFrac = ant.index - indexInt;
+
+        if (indexInt >= pathRef.length - 1) return;
+
+        // Smooth spatial interpolation between discrete nodes
+        const p1 = toCanvasCoords(pathRef[indexInt], viewW, viewH);
+        const p2 = toCanvasCoords(pathRef[indexInt + 1], viewW, viewH);
+        const curX = p1.x + (p2.x - p1.x) * indexFrac;
+        const curY = p1.y + (p2.y - p1.y) * indexFrac;
+
+        // Determine orientation angle to align body movement direction
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+        simCtx.save();
+        simCtx.translate(curX, curY);
+        simCtx.rotate(angle);
+
+        // Render ant anatomy (body shape + color status)
+        const isCarrying = ant.hasFood;
+        
+        // Glow layer for carry state
+        if (isCarrying) {
+          simCtx.shadowBlur = 8;
+          simCtx.shadowColor = '#10b981';
+        }
+
+        // Draw body segments
+        // Abdomen
+        simCtx.fillStyle = isCarrying ? '#10b981' : '#f97316';
+        simCtx.beginPath();
+        simCtx.ellipse(-4, 0, 4, 2.2, 0, 0, Math.PI * 2);
+        simCtx.fill();
+
+        // Head
+        simCtx.fillStyle = '#f8fafc';
+        simCtx.beginPath();
+        simCtx.arc(4, 0, 2, 0, Math.PI * 2);
+        simCtx.fill();
+
+        // Legs indicators
+        simCtx.strokeStyle = '#64748b';
+        simCtx.lineWidth = 1;
+        simCtx.beginPath();
+        // Forward leg
+        simCtx.moveTo(0, -3); simCtx.lineTo(2, -5);
+        simCtx.moveTo(0, 3);  simCtx.lineTo(2, 5);
+        // Back leg
+        simCtx.moveTo(-2, -3); simCtx.lineTo(-4, -5);
+        simCtx.moveTo(-2, 3);  simCtx.lineTo(-4, 5);
+        simCtx.stroke();
+
+        simCtx.restore();
+      });
+
+      // Update Live Indicators
+      updateStatsPanel();
+    }
+
+    // Helper: Plot glowing, continuous, multi-segment line width proportional to trail memory intensity
+    function drawSingleTrail(path, pheromones, lowColor, glowColor) {
+      if (path.length === 0) return;
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const p1 = toCanvasCoords(path[i], viewW, viewH);
+        const p2 = toCanvasCoords(path[i + 1], viewW, viewH);
+
+        const val = pheromones[i];
+        const alphaNorm = Math.min(1.0, val / 15.0);
+
+        // Glowing track backplane
+        simCtx.shadowBlur = 6;
+        simCtx.shadowColor = glowColor;
+        simCtx.strokeStyle = glowColor;
+        simCtx.globalAlpha = alphaNorm * 0.85;
+        // Map strength directly to physical trail thickness
+        simCtx.lineWidth = 1.2 + Math.min(14.0, val * 0.6);
+        simCtx.lineCap = 'round';
+
+        simCtx.beginPath();
+        simCtx.moveTo(p1.x, p1.y);
+        simCtx.lineTo(p2.x, p2.y);
+        simCtx.stroke();
+      }
+
+      // Reset alpha
+      simCtx.globalAlpha = 1.0;
+      simCtx.shadowBlur = 0;
+    }
+
+    // Draw the Line Chart of Path Selection Ratio over time
+    function drawDiagnosticsChart() {
+      chartCtx.fillStyle = '#090d16';
+      chartCtx.fillRect(0, 0, chartW, chartH);
+
+      if (chartW <= 0 || chartH <= 0) return;
+
+      // Draw horizontal baseline guidelines
+      chartCtx.strokeStyle = '#1e293b';
+      chartCtx.lineWidth = 1;
+      
+      const gridLevels = [0.2, 0.5, 0.8];
+      gridLevels.forEach(lvl => {
+        const y = chartH * (1 - lvl);
+        chartCtx.beginPath();
+        if (lvl === 0.5) {
+          chartCtx.setLineDash([4, 4]); // Dashed threshold line
+          chartCtx.strokeStyle = '#475569';
+        } else {
+          chartCtx.setLineDash([]);
+          chartCtx.strokeStyle = '#1e293b';
+        }
+        chartCtx.moveTo(0, y);
+        chartCtx.lineTo(chartW, y);
+        chartCtx.stroke();
+
+        // Label thresholds
+        chartCtx.fillStyle = '#64748b';
+        chartCtx.font = '9px Fira Code, monospace';
+        let label = `${(lvl * 100).toFixed(0)}%`;
+        if (lvl === 0.5) label += " 对称平衡";
+        if (lvl === 0.8) label += " 短路径绝对优势";
+        chartCtx.fillText(label, 8, y - 4);
+      });
+      chartCtx.setLineDash([]); // clear dash
+
+      // Render Historical Selection Trend Line
+      if (choiceHistory.length < 2) {
+        chartCtx.fillStyle = '#475569';
+        chartCtx.font = '11px Inter, sans-serif';
+        chartCtx.textAlign = 'center';
+        chartCtx.fillText('等待充足采样周期以构建趋势特征图表...', chartW / 2, chartH / 2);
+        return;
+      }
+
+      // Draw plot line
+      chartCtx.beginPath();
+      chartCtx.lineWidth = 2.5;
+      chartCtx.strokeStyle = '#22d3ee'; // Cyan curves
+
+      // Map dynamic array length to visual scale width
+      const spacingX = chartW / 300;
+
+      for (let i = 0; i < choiceHistory.length; i++) {
+        const x = i * spacingX;
+        const y = chartH * (1 - choiceHistory[i]);
+        if (i === 0) chartCtx.moveTo(x, y);
+        else chartCtx.lineTo(x, y);
+      }
+      chartCtx.stroke();
+
+      // Glowing area underneath
+      chartCtx.lineTo((choiceHistory.length - 1) * spacingX, chartH);
+      chartCtx.lineTo(0, chartH);
+      chartCtx.closePath();
+      let gradient = chartCtx.createLinearGradient(0, 0, 0, chartH);
+      gradient.addColorStop(0, 'rgba(6, 182, 212, 0.15)');
+      gradient.addColorStop(1, 'rgba(6, 182, 212, 0.00)');
+      chartCtx.fillStyle = gradient;
+      chartCtx.fill();
+    }
+
+    // Refresh telemetry and analytical indices in HUD
+    function updateStatsPanel() {
+      // Completed deliveries
+      document.getElementById('stat-completed').textContent = `${state.completedTrips} / ${state.goalDeliveries} 次`;
+      
+      // Preference Percentage
+      const percentageA = (state.currentRatioA * 100).toFixed(1);
+      document.getElementById('stat-preference').textContent = `${percentageA}%`;
+
+      // Realtime System Entropy: S = - (pA * ln(pA) + pB * ln(pB))
+      const pA = Math.max(0.001, Math.min(0.999, state.currentRatioA));
+      const pB = 1.0 - pA;
+      const entropy = - (pA * Math.log2(pA) + pB * Math.log2(pB));
+      document.getElementById('stat-entropy').textContent = entropy.toFixed(3);
+
+      // Convergence Badge & Status Classifiers
+      const badge = document.getElementById('convergence-badge');
+      if (pA > 0.85) {
+        badge.textContent = '🌟 最短路径自组织收敛 (Optimal)';
+        badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-950/80 backdrop-blur-md border border-emerald-800 text-emerald-400';
+      } else if (pA < 0.15) {
+        badge.textContent = '⚠️ 分岔陷阱次优锁死 (Suboptimal Lock-in)';
+        badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-amber-950/80 backdrop-blur-md border border-amber-800 text-amber-400';
+      } else if (state.trail_evaporation_rate > 0.05) {
+        badge.textContent = '❄️ 遗忘过快：分布式存储失效 (Memory Loss)';
+        badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-rose-950/80 backdrop-blur-md border border-rose-800 text-rose-400';
+      } else {
+        badge.textContent = '⚖️ 平衡探索阶段 (Active Exploration)';
+        badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-800 text-slate-400';
+      }
+    }
+
+    // High performance gameloop utilizing requestAnimationFrame
+    function animate(currentTime) {
+      if (state.lastTime === 0) state.lastTime = currentTime;
+      const dt = (currentTime - state.lastTime) / 1000.0; // convert to seconds
+      state.lastTime = currentTime;
+
+      // Restrain dt anomalies from window focus loss
+      const safeDt = Math.min(dt, 0.1);
+
+      updateSimulation(safeDt);
+      drawSimulationScene();
+      drawDiagnosticsChart();
+
+      requestAnimationFrame(animate);
+    }
+
+    // Keyboard Shortcuts Support
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleSimulation();
+      } else if (e.code === 'KeyR' || e.code === 'Keyr') {
+        resetSimulation();
+      }
+    });
+
+  </script>
+
+  <!-- REQUIRED: postMessage Listener for Teacher Actions -->
+  <script>
+    window.addEventListener('message', function(event) {
+      const { type, target, state: widgetState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          // Update all variables in the state object
+          if (widgetState) {
+            Object.entries(widgetState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                // Trigger change event to update simulation
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+            resetSimulation();
+            toggleSimulation(true); // Auto-start on teacher-state action
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          // Highlight the target element with a pulsing border
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(139, 92, 246, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            // Remove highlight after 3 seconds
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          // Show an annotation tooltip near the target element
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(139,92,246,0.95); color:white; padding:8px 12px; border-radius:8px; font-size:14px; z-index:1000; animation:fadeIn 0.3s; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.2); pointer-events:none;';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          // Reveal a hidden element
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Add CSS for animations dynamically
+    const style = document.createElement('style');
+    style.textContent = '@keyframes pulse-highlight { 0%, 100% { outline-color: rgba(139, 92, 246, 0.8); } 50% { outline-color: rgba(139, 92, 246, 0.4); } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }';
+    document.head.appendChild(style);
+  </script>
+
+</body>
+</html>

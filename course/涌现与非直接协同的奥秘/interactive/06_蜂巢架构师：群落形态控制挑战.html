@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蜂巢架构师：群落形态控制挑战</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --border-color: #30363d;
+            --text-color: #c9d1d9;
+            --accent-gold: #ecc900;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --glow-gold: rgba(236, 201, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: hidden;
+            padding: 15px;
+        }
+
+        /* Container Layout */
+        .game-container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        @media (min-width: 900px) {
+            .game-container {
+                grid-template-columns: 280px 1fr;
+            }
+        }
+
+        /* Header Styles */
+        header {
+            width: 100%;
+            max-width: 1100px;
+            text-align: center;
+            margin-bottom: 5px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            color: var(--accent-gold);
+            text-shadow: 0 0 10px var(--glow-gold);
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+
+        /* Panel Styling */
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Left/Info Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .stat-value.gold { color: var(--accent-gold); }
+        .stat-value.blue { color: var(--accent-blue); }
+        .stat-value.green { color: var(--accent-green); }
+
+        /* Term/Codex Styling */
+        .codex {
+            font-size: 0.8rem;
+            background: rgba(88, 166, 255, 0.05);
+            border-left: 3px solid var(--accent-blue);
+            padding: 8px;
+            border-radius: 0 4px 4px 0;
+            margin-top: 5px;
+        }
+
+        .codex-title {
+            font-weight: bold;
+            color: var(--accent-blue);
+            margin-bottom: 3px;
+        }
+
+        /* Main Game Area */
+        .main-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #090d13;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            width: 100%;
+            aspect-ratio: 1;
+            max-width: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .slider-desc {
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-gold);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--glow-gold);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Button Grid */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .game-btn {
+            background: #21262d;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .game-btn:hover {
+            background: #30363d;
+            border-color: #8b949e;
+        }
+
+        .game-btn.primary {
+            background: var(--accent-green);
+            color: #fff;
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .game-btn.primary:hover {
+            background: #2ea043;
+            box-shadow: 0 0 10px rgba(63, 185, 80, 0.4);
+        }
+
+        .game-btn.danger {
+            background: rgba(248, 81, 73, 0.15);
+            border-color: var(--accent-red);
+            color: #ff7b72;
+        }
+
+        .game-btn.danger:hover {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        /* Notifications & Log */
+        .log-panel {
+            font-family: monospace;
+            font-size: 0.75rem;
+            background: #090d13;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            height: 80px;
+            overflow-y: auto;
+            color: #8b949e;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            line-height: 1.2;
+        }
+
+        .log-entry.alert { color: var(--accent-red); }
+        .log-entry.info { color: var(--accent-blue); }
+        .log-entry.success { color: var(--accent-green); }
+
+        /* Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 17, 23, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay h2 {
+            color: var(--accent-gold);
+            margin-bottom: 15px;
+            font-size: 1.6rem;
+        }
+
+        .overlay p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            max-width: 400px;
+            color: #c9d1d9;
+        }
+
+        /* Achievements popup */
+        .achievement-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--panel-bg);
+            border: 2px solid var(--accent-gold);
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transform: translateY(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+        }
+
+        .achievement-toast.show {
+            transform: translateY(0);
+        }
+
+        .achievement-icon {
+            font-size: 1.8rem;
+        }
+
+        /* Help Info and Guide */
+        .interactive-guide {
+            background: rgba(236, 201, 0, 0.05);
+            border: 1px dashed var(--accent-gold);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.8rem;
+        }
+
+        .guide-step {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+
+        .guide-num {
+            background: var(--accent-gold);
+            color: #000;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* Progress indicator inside canvas */
+        .hud-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-family: monospace;
+            font-size: 0.85rem;
+            z-index: 5;
+            background: rgba(13, 17, 23, 0.7);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Pulse Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.3; }
+            50% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(0.95); opacity: 0.3; }
+        }
+
+        .pulse-effect {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body>
+
+    <header>
+        <h1>蜂巢架构师：群落形态控制挑战</h1>
+        <p>利用非直接协同与规则调谐，引导混乱蜂群构筑完美对称的圆形纸蜂巢</p>
+    </header>
+
+    <div class="game-container">
+        <!-- Sidebar: Stats, Concepts & Achievements -->
+        <div class="sidebar">
+            <div class="panel">
+                <h3 style="color: var(--accent-gold); font-size: 1rem;">控制面板 / Dashboard</h3>
+                
+                <div class="stat-card">
+                    <span>当前关卡 (Level)</span>
+                    <span id="level-val" class="stat-value blue">1</span>
+                </div>
+                
+                <div class="stat-card">
+                    <span>目标吻合度 (Match)</span>
+                    <span id="match-val" class="stat-value gold">0%</span>
+                </div>
+
+                <div class="stat-card">
+                    <span>结构完整度 (Stability)</span>
+                    <span id="integrity-val" class="stat-value green">100%</span>
+                </div>
+
+                <div class="stat-card">
+                    <span>剩余时间 (Time)</span>
+                    <span id="time-val" class="stat-value" style="color:#ff7b72;">90s</span>
+                </div>
+            </div>
+
+            <!-- Concept Codex -->
+            <div class="panel">
+                <h3 style="color: var(--accent-blue); font-size: 0.95rem;">架构学派学术卡片</h3>
+                
+                <div class="codex">
+                    <div class="codex-title">非直接协同 (Stigmergy)</div>
+                    智能体不进行直接交流，而是通过修改局部环境（如已有的巢体结构）来激发后续行为。这正是分布式自组织的底层逻辑。
+                </div>
+
+                <div class="codex">
+                    <div class="codex-title">分岔行为 (Bifurcation)</div>
+                    当调控参数越过临界值时，系统状态会突变。过度提高Rule 1将导致系统从“圆形逼近”突变为“无序树状辐射”。
+                </div>
+
+                <div class="codex">
+                    <div class="codex-title">正反馈 (Positive Feedback)</div>
+                    越是密集的砖块区域，越容易满足Rule 2的沉积条件，从而加速局部闭合。玩家需要抑制这种失控的局部集中。
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Stage: Canvas, Controls, Logs -->
+        <div class="main-stage">
+            <div class="canvas-container">
+                <!-- HUD info atop canvas -->
+                <div class="hud-overlay">
+                    <span id="hud-mode">激光清除器可用(点击/拖拽擦除)</span>
+                    <span id="hud-wind" style="color: var(--accent-red);">风力: 无</span>
+                </div>
+
+                <!-- Canvas -->
+                <canvas id="gameCanvas" width="500" height="500"></canvas>
+
+                <!-- Overlay Screens -->
+                <!-- Start Screen -->
+                <div id="start-screen" class="overlay">
+                    <h2>🧬 开启蜂巢自组织控制实验</h2>
+                    <p>
+                        你拥有间接宏观调控权。蜂群筑巢遵循邻里反馈律：<br>
+                        <strong>Rule 1 (2-walls):</strong> 探测到2面邻接墙壁时的筑巢概率<br>
+                        <strong>Rule 2 (3-walls):</strong> 探测到3面邻接墙壁时的筑巢概率<br><br>
+                        调整右侧滑块控制概率，并在画布上直接<strong>点击/拖拽擦除</strong>多余分支，促使蜂巢完美贴合绿色环形。
+                    </p>
+                    <button class="game-btn primary" style="padding: 12px 40px; font-size: 1.1rem;" onclick="startGame()">启动系统进程</button>
+                </div>
+
+                <!-- Level Complete Screen -->
+                <div id="complete-screen" class="overlay hidden">
+                    <h2 style="color: var(--accent-green);">🎉 关卡收敛成功！</h2>
+                    <p id="complete-desc">形态吻合度已达到规定标准。群落形态进入暂态自维持平衡。</p>
+                    <div class="stat-card" style="width: 100%; max-width: 300px; margin-bottom: 20px;">
+                        <span>本次得分:</span>
+                        <span id="level-score" class="stat-value gold">0</span>
+                    </div>
+                    <button id="next-level-btn" class="game-btn primary" style="width: 200px;" onclick="nextLevel()">进入下一能级</button>
+                </div>
+
+                <!-- Game Over Screen -->
+                <div id="gameover-screen" class="overlay hidden">
+                    <h2 style="color: var(--accent-red);">⚠️ 结构无序化崩溃</h2>
+                    <p id="fail-reason">由于分支无序扩张或风力侵蚀，完整度过低，群落失控分岔崩溃。</p>
+                    <button class="game-btn danger" style="width: 200px;" onclick="restartLevel()">重新加载本关</button>
+                </div>
+            </div>
+
+            <!-- Intervener Controls -->
+            <div class="panel controls-panel">
+                <h3 style="color: var(--accent-gold); font-size: 1rem; display: flex; justify-content: space-between;">
+                    <span>环境干预律调谐区 (Intervention Parameters)</span>
+                    <span style="font-size:0.8rem; color:#8b949e;">智能体数: <span id="agent-count-val">50</span></span>
+                </h3>
+
+                <!-- Parameter 1 -->
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Rule 1 (2-walls) 触发概率 - 生长分枝因子</span>
+                        <span id="r1-val" style="color: var(--accent-blue);">30%</span>
+                    </div>
+                    <input type="range" id="p1-slider" min="0" max="100" value="30">
+                    <div class="slider-desc">控制探测到2个邻居时的沉积率。高值促使分支穿透，向外快速侵略式生长。</div>
+                </div>
+
+                <!-- Parameter 2 -->
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Rule 2 (3-walls) 触发概率 - 空间充填平滑度</span>
+                        <span id="r2-val" style="color: var(--accent-green);">70%</span>
+                    </div>
+                    <input type="range" id="p2-slider" min="0" max="100" value="70">
+                    <div class="slider-desc">控制探测到3个邻居时的回填率。高值促使凹陷闭合，形成光滑连续界面。</div>
+                </div>
+
+                <!-- Live Interaction Buttons & Guide -->
+                <div class="btn-grid">
+                    <button class="game-btn" onclick="triggerDisturbance()">
+                        🌀 注入风力脉冲 (Disturbance)
+                    </button>
+                    <button class="game-btn danger" onclick="clearAllAnomalies()">
+                        💥 质能重组 (清除多余分支)
+                    </button>
+                </div>
+
+                <!-- Live Log -->
+                <div class="log-panel" id="log-box">
+                    <div class="log-entry info">[系统初始化完成] 准备进行非平衡自组织形态控制。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievement Toast -->
+    <div id="achievement-toast" class="achievement-toast">
+        <span class="achievement-icon" id="ach-icon">🏆</span>
+        <div>
+            <div style="font-weight: bold; color: var(--accent-gold); font-size: 0.9rem;">解锁学术成就</div>
+            <div id="ach-name" style="font-size: 0.8rem; color: #fff;">成就名称</div>
+        </div>
+    </div>
+
+    <!-- Configuration for embedding/tracking -->
+    <script type="application/json" id="widget-config">
+    {
+      "type": "game",
+      "gameType": "strategy",
+      "description": "蜂巢架构师：群落形态控制挑战。通过控制微观自组织规则概率并结合实时扰动和擦除，引导多智能体群落构建完美靶向形态。",
+      "scoring": {
+        "correctPoints": 10,
+        "speedBonus": 5
+      }
+    }
+    </script>
+
+    <script>
+    // Embedded game execution wrapper
+    document.addEventListener('DOMContentLoaded', function() {
+        // Core Simulation Canvas Settings
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Grid Representation
+        const cols = 55;
+        const rows = 55;
+        const cellW = width / cols;
+        const cellH = height / rows;
+        let grid = Array(cols).fill(null).map(() => Array(rows).fill(0));
+        
+        // Target Profile Definitions
+        let targetRingRadius = 15; // In cell units
+        let targetRingThickness = 2.0; 
+        const centerX = Math.floor(cols / 2);
+        const centerY = Math.floor(rows / 2);
+
+        // Simulation parameters Controlled by Player
+        let p1 = 0.30; // Rule 1 probability
+        let p2 = 0.70; // Rule 2 probability
+
+        // Level Specifications
+        let currentLevel = 1;
+        const levels = [
+            {
+                levelNum: 1,
+                name: "自组织发轫 (Nascent Emergence)",
+                desc: "在无风干扰的洁净真空环境中，调谐参数，在绿色引导环上形成闭合圆形结构。目标吻合度：>=75%",
+                targetMatch: 0.75,
+                windMax: 0.0,
+                duration: 90,
+                agentCount: 55,
+                seedPoints: [
+                    {x: centerX - 14, y: centerY},
+                    {x: centerX + 14, y: centerY},
+                    {x: centerX, y: centerY - 14},
+                    {x: centerX, y: centerY + 14}
+                ]
+            },
+            {
+                levelNum: 2,
+                name: "混沌分岔调谐 (Bifurcation Control)",
+                desc: "存在持续微弱切向气流扰动，局部正反馈将产生分岔长枝。保持高完整度。目标吻合度：>=80%",
+                targetMatch: 0.80,
+                windMax: 0.15,
+                duration: 90,
+                agentCount: 65,
+                seedPoints: [
+                    {x: centerX - 14, y: centerY},
+                    {x: centerX + 14, y: centerY},
+                    {x: centerX, y: centerY - 14},
+                    {x: centerX, y: centerY + 14},
+                    {x: centerX - 10, y: centerY - 10},
+                    {x: centerX + 10, y: centerY + 10}
+                ]
+            },
+            {
+                levelNum: 3,
+                name: "强非线性鲁棒性挑战 (Extreme Robustness)",
+                desc: "极端复杂扰动。阵风不定期冲击。需要果断裁剪失控节点，配合宏观规则逼近完美圆形。目标吻合度：>=85%",
+                targetMatch: 0.85,
+                windMax: 0.35,
+                duration: 90,
+                agentCount: 80,
+                seedPoints: [
+                    {x: centerX - 14, y: centerY},
+                    {x: centerX + 14, y: centerY},
+                    {x: centerX, y: centerY - 14},
+                    {x: centerX, y: centerY + 14}
+                ]
+            }
+        ];
+
+        // Active State
+        let gameActive = false;
+        let timeRemaining = 90;
+        let matchPercent = 0;
+        let stabilityScore = 100;
+        let activeLevel = levels[0];
+        let timerInterval = null;
+        let particles = [];
+        let windAngle = 0;
+        let currentWindStrength = 0;
+        let actualWindVector = {x: 0, y: 0};
+        let lasers = []; // Erase graphical lines
+
+        // Achievements state
+        let achievementsUnlocked = {
+            softLander: false,
+            bifurcationCatcher: false,
+            laserMaestro: false
+        };
+
+        // Agents list
+        let agents = [];
+
+        class BuildAgent {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                // Initialize at random positions near the target ring to encourage building
+                const angle = Math.random() * Math.PI * 2;
+                const r = targetRingRadius + (Math.random() - 0.5) * 8;
+                this.x = centerX + Math.cos(angle) * r;
+                this.y = centerY + Math.sin(angle) * r;
+                // Bound check
+                this.x = Math.max(2, Math.min(cols - 3, this.x));
+                this.y = Math.max(2, Math.min(rows - 3, this.y));
+            }
+
+            update() {
+                // Random walk + Wind effect
+                let dx = (Math.random() - 0.5) * 1.5 + actualWindVector.x;
+                let dy = (Math.random() - 0.5) * 1.5 + actualWindVector.y;
+                
+                this.x += dx;
+                this.y += dy;
+
+                // Ensure stay in bounds
+                if (this.x < 1 || this.x >= cols - 1 || this.y < 1 || this.y >= rows - 1) {
+                    this.reset();
+                    return;
+                }
+
+                // Grid cell mapping
+                let gx = Math.floor(this.x);
+                let gy = Math.floor(this.y);
+
+                // If currently on an empty space, check surrounding environment traces (Stigmergy)
+                if (grid[gx][gy] === 0) {
+                    let neighbors = this.countNeighbors(gx, gy);
+                    let buildProbability = 0;
+
+                    if (neighbors === 2) {
+                        buildProbability = p1; // Controlled by slider 1
+                    } else if (neighbors === 3) {
+                        buildProbability = p2; // Controlled by slider 2
+                    } else if (neighbors === 1) {
+                        buildProbability = 0.005; // Base probability to avoid full stagnation
+                    } else if (neighbors >= 4) {
+                        buildProbability = 0.01; // Avoid over-clumping
+                    }
+
+                    if (Math.random() < buildProbability) {
+                        grid[gx][gy] = 1;
+                        spawnPuff(gx, gy, 'gold');
+                        this.reset(); // Relocate agent after building
+                    }
+                }
+            }
+
+            countNeighbors(x, y) {
+                let count = 0;
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        if (dx === 0 && dy === 0) continue;
+                        let nx = x + dx;
+                        let ny = y + dy;
+                        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                            if (grid[nx][ny] === 1) count++;
+                        }
+                    }
+                }
+                return count;
+            }
+        }
+
+        // Particle Puff effect
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x * cellW + cellW/2;
+                this.y = y * cellH + cellH/2;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 1.0;
+                this.decay = 0.05 + Math.random() * 0.05;
+                this.color = color === 'gold' ? '#ecc900' : '#f85149';
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+            }
+
+            draw(g) {
+                g.fillStyle = this.color;
+                g.globalAlpha = this.life;
+                g.beginPath();
+                g.arc(this.x, this.y, 3 * this.life, 0, Math.PI*2);
+                g.fill();
+                g.globalAlpha = 1.0;
+            }
+        }
+
+        function spawnPuff(gx, gy, color) {
+            for(let i=0; i<6; i++) {
+                particles.push(new Particle(gx, gy, color));
+            }
+        }
+
+        // Setup Sliders and event hooks
+        const p1Slider = document.getElementById('p1-slider');
+        const p2Slider = document.getElementById('p2-slider');
+        const r1ValText = document.getElementById('r1-val');
+        const r2ValText = document.getElementById('r2-val');
+
+        p1Slider.addEventListener('input', function() {
+            p1 = parseFloat(this.value) / 100;
+            r1ValText.textContent = this.value + "%";
+            addLog(`玩家干预：Rule 1 (2-walls) 概率设为 ${this.value}%`, 'info');
+        });
+
+        p2Slider.addEventListener('input', function() {
+            p2 = parseFloat(this.value) / 100;
+            r2ValText.textContent = this.value + "%";
+            addLog(`玩家干预：Rule 2 (3-walls) 概率设为 ${this.value}%`, 'info');
+        });
+
+        // Interactive Laser Clearing (Mouse / Touch on Canvas)
+        let isDrawing = false;
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Support both touch and mouse
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (width / rect.width),
+                y: (clientY - rect.top) * (height / rect.height)
+            };
+        }
+
+        function handleErase(coords) {
+            if (!gameActive) return;
+            const gx = Math.floor(coords.x / cellW);
+            const gy = Math.floor(coords.y / cellH);
+
+            if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+                if (grid[gx][gy] === 1) {
+                    grid[gx][gy] = 0;
+                    spawnPuff(gx, gy, 'red');
+                    lasers.push({
+                        x1: coords.x,
+                        y1: coords.y,
+                        life: 1.0
+                    });
+                    
+                    // Award achievement counter
+                    laserClearsCount++;
+                    if (laserClearsCount >= 40 && !achievementsUnlocked.laserMaestro) {
+                        unlockAchievement('laserMaestro', '🧹 空间清理大师', '手动清除 40 个异化沉积块');
+                    }
+                }
+            }
+        }
+
+        let laserClearsCount = 0;
+
+        canvas.addEventListener('mousedown', function(e) {
+            isDrawing = true;
+            handleErase(getCanvasCoordinates(e));
+        });
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (isDrawing) {
+                handleErase(getCanvasCoordinates(e));
+            }
+        });
+
+        window.addEventListener('mouseup', function() {
+            isDrawing = false;
+        });
+
+        // Touch support
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            isDrawing = true;
+            handleErase(getCanvasCoordinates(e));
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            if (isDrawing) {
+                handleErase(getCanvasCoordinates(e));
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', function() {
+            isDrawing = false;
+        });
+
+        // Initialize Level parameters
+        function initLevel(lvlIndex) {
+            activeLevel = levels[lvlIndex];
+            document.getElementById('level-val').textContent = activeLevel.levelNum;
+            document.getElementById('agent-count-val').textContent = activeLevel.agentCount;
+            
+            // Re-seed grid with central guidance architecture elements
+            grid = Array(cols).fill(null).map(() => Array(rows).fill(0));
+            activeLevel.seedPoints.forEach(pt => {
+                grid[pt.x][pt.y] = 1;
+            });
+
+            // Re-generate agents
+            agents = [];
+            for (let i = 0; i < activeLevel.agentCount; i++) {
+                agents.push(new BuildAgent());
+            }
+
+            // Reset Wind and counters
+            currentWindStrength = 0;
+            actualWindVector = {x:0, y:0};
+            document.getElementById('hud-wind').textContent = "风力: 无";
+            document.getElementById('hud-wind').style.color = "var(--text-color)";
+            
+            timeRemaining = activeLevel.duration;
+            document.getElementById('time-val').textContent = timeRemaining + "s";
+
+            // Sliders reset for fair balance
+            p1Slider.value = 30;
+            p2Slider.value = 70;
+            p1 = 0.30;
+            p2 = 0.70;
+            r1ValText.textContent = "30%";
+            r2ValText.textContent = "70%";
+
+            addLog(`关卡 ${activeLevel.levelNum} 开始: ${activeLevel.name}`, 'info');
+            addLog(`自组织目标：实现 ${Math.round(activeLevel.targetMatch*100)}% 圆形吻合度`, 'info');
+        }
+
+        // Exposed global trigger actions
+        window.startGame = function() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('complete-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            
+            initLevel(0);
+            currentLevel = 1;
+            gameActive = true;
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(tickGameTimer, 1000);
+
+            // Trigger Animation loop
+            requestAnimationFrame(gameLoop);
+        };
+
+        window.restartLevel = function() {
+            document.getElementById('gameover-screen').classList.add('hidden');
+            initLevel(currentLevel - 1);
+            gameActive = true;
+        };
+
+        window.nextLevel = function() {
+            document.getElementById('complete-screen').classList.add('hidden');
+            if (currentLevel < levels.length) {
+                currentLevel++;
+                initLevel(currentLevel - 1);
+                gameActive = true;
+            } else {
+                // Return to start
+                document.getElementById('start-screen').classList.remove('hidden');
+            }
+        };
+
+        window.triggerDisturbance = function() {
+            if (!gameActive) return;
+            // Introduce sharp tangential wind perturbation
+            windAngle = Math.random() * Math.PI * 2;
+            currentWindStrength = activeLevel.windMax > 0 ? activeLevel.windMax * 1.5 : 0.25;
+            actualWindVector.x = Math.cos(windAngle) * currentWindStrength;
+            actualWindVector.y = Math.sin(windAngle) * currentWindStrength;
+
+            addLog(`⚠️ 强风暴干扰侵入！风向: ${Math.round(windAngle * 180 / Math.PI)}°`, 'alert');
+            document.getElementById('hud-wind').textContent = `强风! 偏斜中`;
+            document.getElementById('hud-wind').style.color = "var(--accent-red)";
+        };
+
+        window.clearAllAnomalies = function() {
+            if (!gameActive) return;
+            // Purge any cell that is NOT on the target ring
+            let purgedCount = 0;
+            for(let x=0; x<cols; x++) {
+                for(let y=0; y<rows; y++) {
+                    if (grid[x][y] === 1) {
+                        let dist = Math.hypot(x - centerX, y - centerY);
+                        if (Math.abs(dist - targetRingRadius) > targetRingThickness + 0.5) {
+                            grid[x][y] = 0;
+                            purgedCount++;
+                            if (Math.random() < 0.2) spawnPuff(x, y, 'red');
+                        }
+                    }
+                }
+            }
+            addLog(`💥 执行全域重组：清除了 ${purgedCount} 个杂散巢块`, 'info');
+        };
+
+        function tickGameTimer() {
+            if (!gameActive) return;
+            timeRemaining--;
+            document.getElementById('time-val').textContent = timeRemaining + "s";
+
+            // Periodic random wind adjustments for Lvl 2 and 3
+            if (activeLevel.windMax > 0 && Math.random() < 0.25) {
+                windAngle += (Math.random() - 0.5) * 1.0;
+                currentWindStrength = Math.random() * activeLevel.windMax;
+                actualWindVector.x = Math.cos(windAngle) * currentWindStrength;
+                actualWindVector.y = Math.sin(windAngle) * currentWindStrength;
+
+                if (currentWindStrength > 0.05) {
+                    document.getElementById('hud-wind').textContent = `风向: ${Math.round(windAngle * 180 / Math.PI)}°`;
+                    document.getElementById('hud-wind').style.color = "var(--accent-red)";
+                } else {
+                    document.getElementById('hud-wind').textContent = "风力: 稳定";
+                    document.getElementById('hud-wind').style.color = "var(--accent-green)";
+                }
+            } else if (activeLevel.windMax === 0) {
+                // Natural stabilization over time
+                currentWindStrength *= 0.8;
+                actualWindVector.x *= 0.8;
+                actualWindVector.y *= 0.8;
+            }
+
+            if (timeRemaining <= 0) {
+                evaluateLevelEnd();
+            }
+        }
+
+        // Core physics and shape evaluation
+        function evaluateLevelEnd() {
+            gameActive = false;
+            clearInterval(timerInterval);
+
+            if (matchPercent >= activeLevel.targetMatch) {
+                // WIN Level
+                document.getElementById('complete-screen').classList.remove('hidden');
+                document.getElementById('complete-desc').innerHTML = `
+                    <strong>关卡成功收敛！</strong><br>
+                    目标吻合度: ${Math.round(activeLevel.targetMatch*100)}%<br>
+                    实际吻合度: <span style="color:var(--accent-green);">${Math.round(matchPercent*100)}%</span><br>
+                    结构完整度: ${Math.round(stabilityScore)}%
+                `;
+                let scoreGained = Math.round(matchPercent * 100 * 10 + (timeRemaining * 5));
+                document.getElementById('level-score').textContent = scoreGained;
+                addLog(`🎉 形态构建合格！最终吻合率: ${Math.round(matchPercent*100)}%`, 'success');
+
+                // Unlock level-based achievements
+                if (matchPercent >= 0.95 && !achievementsUnlocked.softLander) {
+                    unlockAchievement('softLander', '🦋 精准自组织学者', '在任意关卡中实现高达 95% 的吻合度');
+                }
+                if (currentLevel === 3 && !achievementsUnlocked.bifurcationCatcher) {
+                    unlockAchievement('bifurcationCatcher', '🌪️ 逆风架构师', '在强扰动中成功锚定完美形态');
+                }
+            } else {
+                // FAIL
+                document.getElementById('fail-reason').textContent = `吻合率仅为 ${Math.round(matchPercent*100)}%，未能实现预定架构。自反馈不收敛崩溃！`;
+                document.getElementById('gameover-screen').classList.remove('hidden');
+                addLog(`⚠️ 失败：群落分岔至无规则形态。`, 'alert');
+            }
+        }
+
+        // Live stats tracking and UI updating
+        function updateEvaluation() {
+            let matches = 0;
+            let totalTargetBlocks = 0;
+            let falseBuilds = 0;
+            let totalBuilt = 0;
+
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    let isBuilt = grid[x][y] === 1;
+                    if (isBuilt) totalBuilt++;
+
+                    // Calculate distance to circle center
+                    let dist = Math.hypot(x - centerX, y - centerY);
+                    let onTarget = Math.abs(dist - targetRingRadius) <= targetRingThickness;
+
+                    if (onTarget) {
+                        totalTargetBlocks++;
+                        if (isBuilt) matches++;
+                    } else if (isBuilt) {
+                        falseBuilds++;
+                    }
+                }
+            }
+
+            // High complexity heuristic:
+            // Match percent represents coverage of target circular path
+            matchPercent = totalTargetBlocks > 0 ? (matches / (targetRingRadius * 5.2)) : 0; // scaled for ideal coverage
+            if (matchPercent > 1.0) matchPercent = 1.0;
+
+            // Structural integrity reduces if there are massive stray clumps away from target path (entropy)
+            let rawStability = 100 - (falseBuilds * 1.5);
+            stabilityScore = Math.max(0, Math.min(100, rawStability));
+
+            // Update DOM element states safely
+            document.getElementById('match-val').textContent = Math.round(matchPercent * 100) + "%";
+            document.getElementById('integrity-val').textContent = Math.round(stabilityScore) + "%";
+
+            // If integrity drops below critical limit, instant failure triggers!
+            if (stabilityScore <= 15 && gameActive) {
+                gameActive = false;
+                clearInterval(timerInterval);
+                document.getElementById('fail-reason').textContent = `极度无序化！杂散分支(${falseBuilds}处)导致系统彻底失联。`;
+                document.getElementById('gameover-screen').classList.remove('hidden');
+                addLog(`❌ 系统崩溃：环境杂散沉积达到热力学崩塌极限。`, 'alert');
+            }
+        }
+
+        // Logging utility
+        function addLog(text, type='info') {
+            const logBox = document.getElementById('log-box');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Achievement system handler
+        function unlockAchievement(id, name, desc) {
+            if (achievementsUnlocked[id]) return;
+            achievementsUnlocked[id] = true;
+            
+            document.getElementById('ach-name').innerHTML = `<strong>${name}</strong><br>${desc}`;
+            const toast = document.getElementById('achievement-toast');
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 5000);
+        }
+
+        // Main Draw and game loop execution
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw faint technological target zone (Golden Glowing Ring)
+            ctx.strokeStyle = 'rgba(63, 185, 80, 0.15)';
+            ctx.lineWidth = cellW * targetRingThickness * 2;
+            ctx.beginPath();
+            ctx.arc(width/2, height/2, targetRingRadius * cellW, 0, Math.PI*2);
+            ctx.stroke();
+
+            // Target ring guideline overlay
+            ctx.strokeStyle = 'rgba(63, 185, 80, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.arc(width/2, height/2, targetRingRadius * cellW, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]); // clear dash
+
+            // Draw grid cells (Hive bricks)
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    if (grid[x][y] === 1) {
+                        let dist = Math.hypot(x - centerX, y - centerY);
+                        let onTarget = Math.abs(dist - targetRingRadius) <= targetRingThickness;
+
+                        if (onTarget) {
+                            // Gold solid structural bricks
+                            ctx.fillStyle = '#ecc900';
+                            ctx.shadowColor = 'rgba(236, 201, 0, 0.3)';
+                            ctx.shadowBlur = 4;
+                        } else {
+                            // Errant branch warning structures (Red/Orange)
+                            ctx.fillStyle = '#ff7b72';
+                            ctx.shadowBlur = 0;
+                        }
+
+                        // Drawing rounded hexagon-like cells
+                        ctx.fillRect(x * cellW + 1, y * cellH + 1, cellW - 2, cellH - 2);
+                        ctx.shadowBlur = 0; // Reset shadow
+                    }
+                }
+            }
+
+            // Draw flying agents (Wasps)
+            agents.forEach(agent => {
+                ctx.fillStyle = '#58a6ff';
+                ctx.beginPath();
+                ctx.arc(agent.x * cellW, agent.y * cellH, 3, 0, Math.PI*2);
+                ctx.fill();
+
+                // Faint wings
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.fillRect(agent.x * cellW - 4, agent.y * cellH - 2, 2, 1);
+                ctx.fillRect(agent.x * cellW + 2, agent.y * cellH - 2, 2, 1);
+            });
+
+            // Draw temporary laser interactions
+            lasers.forEach((laser, idx) => {
+                ctx.strokeStyle = 'rgba(248, 81, 73, ' + laser.life + ')';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(laser.x1, laser.y1, 10 * (1 - laser.life), 0, Math.PI*2);
+                ctx.stroke();
+                
+                laser.life -= 0.1;
+            });
+            lasers = lasers.filter(l => l.life > 0);
+
+            // Draw particles
+            particles.forEach(p => p.update());
+            particles.forEach(p => p.draw(ctx));
+            particles = particles.filter(p => p.life > 0);
+
+            // Draw Wind direction line indicator overlay if strong wind active
+            if (currentWindStrength > 0.05) {
+                ctx.strokeStyle = 'rgba(240, 100, 100, 0.4)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(width - 50, 50);
+                ctx.lineTo(width - 50 + Math.cos(windAngle)*30, 50 + Math.sin(windAngle)*30);
+                ctx.stroke();
+                // Arrow tip
+                ctx.fillStyle = 'rgba(240, 100, 100, 0.6)';
+                ctx.beginPath();
+                ctx.arc(width - 50 + Math.cos(windAngle)*30, 50 + Math.sin(windAngle)*30, 5, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+
+        // Loop Runner
+        function gameLoop() {
+            if (!gameActive) {
+                // Keep drawing background environment even when paused/finished
+                draw();
+                return;
+            }
+
+            // Process multiagent simulation steps
+            agents.forEach(agent => agent.update());
+            
+            updateEvaluation();
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+    });
+    </script>
+</body>
+</html>

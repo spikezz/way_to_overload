@@ -1,0 +1,21 @@
+{
+  "course": "涌现与非直接协同的奥秘",
+  "note": "OpenMAIC 的导出/导入两端都不携带 per-agent voiceConfig（export 不写、import 不读），所以这份声音配置必须在导入后手动恢复。运行同目录的 restore-voices.js 即可。",
+  "narration": {
+    "scope": "global — settings-storage.state.ttsVoice",
+    "providerId": "openai-tts",
+    "voiceId": "echo",
+    "note": "audio/ 里所有旁白 mp3 已用 echo 渲染并打包，听感不依赖此设置；仅当你重新生成旁白时才需要。echo 同时也是实时讨论里老师(default-1)的声音。"
+  },
+  "discussionAgents": {
+    "scope": "per-agent — agent-registry-storage.state.agents[id].voiceConfig",
+    "providerId": "openai-tts",
+    "appliesTo": "仅影响互动课堂的实时讨论 TTS（现场生成，不在导出音频里）",
+    "assignments": {
+      "default-3": { "name": "显眼包", "voiceId": "nova" },
+      "default-4": { "name": "好奇宝宝", "voiceId": "alloy" },
+      "default-6": { "name": "思考者", "voiceId": "shimmer" }
+    }
+  },
+  "caveat": "默认 agent 的 voiceConfig 在部分 OpenMAIC 版本里会被 registry store 的 merge 逻辑在每次刷新时重置。若刷新后声音回退到 fallback，说明你的 OpenMAIC 缺少 default-agent voiceConfig 持久化修复。"
+}

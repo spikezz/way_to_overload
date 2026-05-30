@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>定量非直接协同与正反馈：白蚁泥柱筑巢模拟</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: manipulation;
+    }
+    .code-font {
+      font-family: 'Fira Code', monospace;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #334155;
+      height: 8px;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.2);
+      background: #a78bfa;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    input[type="range"]::-moz-range-thumb:active {
+      transform: scale(1.2);
+      background: #a78bfa;
+    }
+    /* Custom scrollbar for control panel */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    /* Glow effects */
+    .glow-purple {
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col lg:flex-row overflow-hidden">
+
+  <!-- Embedded Widget Config -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "quantitative_stigmergy_positive_feedback",
+    "description": "模拟定量非直接协同（Quantitative Stigmergy）中的正反馈与分岔现象。通过调整白蚁密度、信息素挥发率和随机噪声，探索泥柱从无序均一相到自组织有序相的相变过程。",
+    "variables": [
+      { "name": "builder_density", "label": "筑巢者密度 (Density)", "min": 50, "max": 400, "default": 200, "unit": "只" },
+      { "name": "pheromone_evaporation_rate", "label": "信息素挥发率 (Evaporation)", "min": 0.005, "max": 0.12, "default": 0.03, "unit": "/s" },
+      { "name": "random_noise_level", "label": "随机噪声水平 (Noise)", "min": 0.0, "max": 1.0, "default": 0.3, "unit": "" }
+    ],
+    "presets": [
+      {
+        "name": "均一无序相 (Below Bifurcation)",
+        "description": "高挥发率和低密度下，正反馈不足以克服耗散，系统保持无序状态，泥柱无法形成。",
+        "variables": { "builder_density": 80, "pheromone_evaporation_rate": 0.10, "random_noise_level": 0.40 }
+      },
+      {
+        "name": "经典自组织泥柱 (Emergent Order)",
+        "description": "正反馈与负反馈（挥发）达到精妙平衡，自发打破空间对称性，涌现出分布均匀的泥柱结构。",
+        "variables": { "builder_density": 220, "pheromone_evaporation_rate": 0.03, "random_noise_level": 0.30 }
+      },
+      {
+        "name": "巨柱竞争与合并 (Coalescence)",
+        "description": "低挥发、高密度驱动强烈的正反馈，泥柱之间发生强烈的“资源争夺”，最终合并为少数超级巨柱。",
+        "variables": { "builder_density": 350, "pheromone_evaporation_rate": 0.008, "random_noise_level": 0.20 }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Left Side: Control Panel & Phase Portrait (Scrollable on mobile, fixed on desktop) -->
+  <div id="controls" class="w-full lg:w-[420px] shrink-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between max-h-[45vh] lg:max-h-screen overflow-y-auto p-4 lg:p-6 z-10 shadow-2xl">
+    
+    <div>
+      <!-- Header -->
+      <div class="mb-4 lg:mb-6">
+        <span class="px-2.5 py-1 text-xs font-semibold bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 uppercase tracking-wider">
+          自组织动力学 (Self-Organization)
+        </span>
+        <h1 class="text-xl lg:text-2xl font-bold text-white mt-2 flex items-center gap-2">
+          定量非直接协同 <span class="text-xs text-slate-400 font-normal">Stigmergy</span>
+        </h1>
+        <p class="text-xs lg:text-sm text-slate-400 mt-1 leading-relaxed">
+          探索白蚁筑巢中的<span class="text-violet-400 font-semibold">正反馈 (Positive Feedback)</span>放大、<span class="text-emerald-400 font-semibold">分岔 (Bifurcation)</span>与<span class="text-amber-400 font-semibold">柱间竞争</span>。
+        </p>
+      </div>
+
+      <!-- Presets Selector -->
+      <div class="mb-5 lg:mb-6">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">典型物理相态 (Presets)</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="preset-1" class="px-2 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 hover:border-slate-600 transition duration-150 text-center flex flex-col justify-between h-16">
+            <span class="font-bold text-left block w-full text-[10px] text-sky-400">01. 均一相</span>
+            <span class="text-[9px] text-slate-400 text-left line-clamp-2">正反馈受阻</span>
+          </button>
+          <button id="preset-2" class="px-2 py-2 text-xs font-medium rounded-lg bg-violet-950/30 hover:bg-violet-900/40 text-violet-200 border border-violet-800/40 hover:border-violet-700/60 transition duration-150 text-center flex flex-col justify-between h-16 glow-purple">
+            <span class="font-bold text-left block w-full text-[10px] text-violet-400">02. 泥柱涌现</span>
+            <span class="text-[9px] text-slate-300 text-left line-clamp-2">经典对称破缺</span>
+          </button>
+          <button id="preset-3" class="px-2 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 hover:border-slate-600 transition duration-150 text-center flex flex-col justify-between h-16">
+            <span class="font-bold text-left block w-full text-[10px] text-amber-400">03. 巨柱合并</span>
+            <span class="text-[9px] text-slate-400 text-left line-clamp-2">极强正反馈</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Variables (Sliders) -->
+      <div class="space-y-4 lg:space-y-5 border-t border-slate-800/80 pt-4">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">系统控制参数 (Controls)</label>
+
+        <!-- Slider 1: Density -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center">
+            <span class="text-xs lg:text-sm font-medium text-slate-300 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              筑巢者密度 <span class="text-slate-500 font-normal">Density</span>
+            </span>
+            <span id="builder_density-display" class="code-font text-xs font-bold text-amber-400 bg-amber-950/30 px-2 py-0.5 rounded border border-amber-500/20">200 只</span>
+          </div>
+          <input type="range" id="builder_density-slider" data-var="builder_density" min="50" max="400" step="10" value="200" class="w-full">
+          <p class="text-[10px] text-slate-500">增加筑巢者会加快信息素累积，增强系统局部的正反馈强度。</p>
+        </div>
+
+        <!-- Slider 2: Evaporation -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center">
+            <span class="text-xs lg:text-sm font-medium text-slate-300 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              信息素挥发率 <span class="text-slate-500 font-normal">Evaporation</span>
+            </span>
+            <span id="pheromone_evaporation_rate-display" class="code-font text-xs font-bold text-cyan-400 bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-500/20">0.030 /s</span>
+          </div>
+          <input type="range" id="pheromone_evaporation_rate-slider" data-var="pheromone_evaporation_rate" min="0.005" max="0.12" step="0.005" value="0.03" class="w-full">
+          <p class="text-[10px] text-slate-500">负反馈项。高挥发性阻碍信息素扩散建立，会将结构“抹平”。</p>
+        </div>
+
+        <!-- Slider 3: Noise -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center">
+            <span class="text-xs lg:text-sm font-medium text-slate-300 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+              行为随机噪声 <span class="text-slate-500 font-normal">Noise</span>
+            </span>
+            <span id="random_noise_level-display" class="code-font text-xs font-bold text-purple-400 bg-purple-950/30 px-2 py-0.5 rounded border border-purple-500/20">0.30</span>
+          </div>
+          <input type="range" id="random_noise_level-slider" data-var="random_noise_level" min="0.0" max="1.0" step="0.05" value="0.30" class="w-full">
+          <p class="text-[10px] text-slate-500">白蚁游走的随机程度。高噪声破坏趋化性（Chemotaxis）引导。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase Diagram / Phase Space Representation -->
+    <div class="mt-5 pt-4 border-t border-slate-800/80">
+      <div class="flex justify-between items-center mb-1.5">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">相空间与分岔 (Phase Space)</label>
+        <span class="text-[10px] text-slate-500 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span> 当前运行点
+        </span>
+      </div>
+      <div class="relative bg-slate-950 rounded-lg p-2 border border-slate-800/80">
+        <canvas id="phaseCanvas" class="w-full h-24 bg-slate-950"></canvas>
+        <div class="absolute left-3 top-3 text-[9px] text-slate-500 font-medium pointer-events-none">均一无序相 (Disordered)</div>
+        <div class="absolute right-3 bottom-5 text-[9px] text-violet-400 font-medium pointer-events-none">自组织相 (Pillars)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Live Simulation Grid & Metrics -->
+  <div class="flex-1 flex flex-col relative min-h-[350px] lg:min-h-0">
+    
+    <!-- Top HUD: Live Statistics -->
+    <div class="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-2 pointer-events-none select-none">
+      
+      <!-- Metric 1: Phase Indicator -->
+      <div class="bg-slate-900/95 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-lg">
+        <div class="w-2.5 h-2.5 rounded-full" id="phase-light"></div>
+        <div>
+          <div class="text-[9px] text-slate-500 uppercase font-bold leading-none">系统当前相态 (System Phase)</div>
+          <div class="text-xs font-bold text-white mt-0.5" id="phase-status">初始化中...</div>
+        </div>
+      </div>
+
+      <!-- Metric 2: Order Parameter -->
+      <div class="bg-slate-900/95 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 flex items-center gap-3 shadow-lg">
+        <div>
+          <div class="text-[9px] text-slate-500 uppercase font-bold leading-none">有序度 (Order Parameter)</div>
+          <div class="text-xs font-bold text-white mt-0.5 code-font" id="order-parameter">0.00 <span class="text-[9px] text-slate-400 font-normal">σ</span></div>
+        </div>
+      </div>
+
+      <!-- Metric 3: Pillar Count -->
+      <div class="bg-slate-900/95 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 flex items-center gap-3 shadow-lg">
+        <div>
+          <div class="text-[9px] text-slate-500 uppercase font-bold leading-none">泥柱数量 (Pillars Emerged)</div>
+          <div class="text-xs font-bold text-violet-400 mt-0.5 code-font" id="pillar-count">0 <span class="text-[9px] text-slate-400 font-normal">个</span></div>
+        </div>
+      </div>
+
+      <!-- Dynamic Info Banner (Concept explanation popup) -->
+      <div class="hidden md:flex ml-auto bg-slate-900/95 backdrop-blur border border-violet-500/20 rounded-lg px-3 py-1.5 items-center gap-2 max-w-xs shadow-lg">
+        <div class="text-violet-400 text-xs">💡</div>
+        <p class="text-[10px] text-slate-300 leading-snug">
+          <strong>非直接协同 (Stigmergy)</strong>：白蚁不直接沟通，而是通过修改环境（堆积泥粒并释放信息素）作为媒介进行间接协同，触发强烈的<strong>正反馈</strong>。
+        </p>
+      </div>
+    </div>
+
+    <!-- Main Canvas Area -->
+    <div class="flex-1 w-full relative bg-slate-950 flex items-center justify-center p-2 lg:p-4">
+      <canvas id="simCanvas" class="max-w-full max-h-full rounded-xl border border-slate-800/80 shadow-2xl bg-slate-950 aspect-[4/3]"></canvas>
+    </div>
+
+    <!-- Bottom Controls & Action Bar -->
+    <div class="p-4 bg-slate-900/90 backdrop-blur border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 z-10">
+      
+      <!-- Concept Explanation / Legend -->
+      <div class="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 border border-white/20"></span>
+          <span>白蚁 (Builders)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded bg-gradient-to-t from-orange-950 to-amber-700 border border-amber-600/30"></span>
+          <span>泥柱高度 (Pillars)</span>
+        </div>
+        <div class="flex items-center gap-1.5 font-semibold">
+          <span class="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-400/50"></span>
+          <span class="text-emerald-400">信息素场 (Pheromone Field)</span>
+        </div>
+      </div>
+
+      <!-- Primary Action Buttons -->
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <button id="reset-btn" class="flex-1 sm:flex-none px-5 py-2.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition-all duration-150 flex items-center justify-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H16" /></svg>
+          重置
+        </button>
+        <button id="start-btn" class="flex-2 sm:flex-none px-8 py-2.5 text-xs font-bold rounded-lg bg-violet-600 hover:bg-violet-500 text-white active:scale-95 transition-all duration-150 shadow-lg shadow-violet-600/25 flex items-center justify-center gap-1.5">
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          启动模拟
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- JavaScript Simulation Logic -->
+  <script>
+    // --- Simulation States & Constants ---
+    const GRID_W = 50;
+    const GRID_H = 38;
+    const CELL_SIZE = 12; // Rendering size base
+    
+    let state = {
+      running: false,
+      ended: false,
+      paused: false
+    };
+
+    // Parameters
+    let config = {
+      builder_density: 200,
+      pheromone_evaporation_rate: 0.03,
+      random_noise_level: 0.30
+    };
+
+    // Simulation grids
+    let pheromone = [];
+    let pillars = [];
+    let termites = [];
+    
+    // Canvas & Contexts
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const phaseCanvas = document.getElementById('phaseCanvas');
+    const phaseCtx = phaseCanvas.getContext('2d');
+
+    // Stats
+    let orderParameter = 0;
+    let computedPillarsCount = 0;
+
+    // --- Grid Class & Initialization ---
+    function initGrids() {
+      pheromone = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(0));
+      
+      // Initialize pillars with uniform base layer and small random fluctuations (Symmetry Breaking)
+      pillars = Array(GRID_H).fill(null).map(() => 
+        Array(GRID_W).fill(null).map(() => 2.0 + (Math.random() - 0.5) * 0.4)
+      );
+      
+      // Initialize termites
+      termites = [];
+      for(let i = 0; i < config.builder_density; i++) {
+        termites.push({
+          x: Math.random() * GRID_W,
+          y: Math.random() * GRID_H,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          carrying: Math.random() < 0.3 // Some termites start carrying soil
+        });
+      }
+    }
+
+    // Adjust canvas resolution dynamically to match parent container size
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      const rect = container.getBoundingClientRect();
+      const padding = 16;
+      const size = Math.min(rect.width - padding, rect.height - padding);
+      
+      // Keepaspect ratio
+      canvas.width = GRID_W * CELL_SIZE * 2; // high DPI scale
+      canvas.height = GRID_H * CELL_SIZE * 2;
+      canvas.style.width = `${size}px`;
+      canvas.style.height = `${size * (GRID_H / GRID_W)}px`;
+    }
+
+    // --- Math & Physics Kernel ---
+    function updateSimulation() {
+      if (!state.running) return;
+
+      // 1. Termite Behavior Logic
+      // Speed factor
+      const speed = 0.6;
+      const pickUpRate = 0.08;
+      const depositRate = 0.15;
+      const pDepositFactor = 8.0; // Pheromone added per soil deposit
+
+      termites.forEach(t => {
+        // Find local coordinates
+        let tx = Math.floor(t.x);
+        let ty = Math.floor(t.y);
+        
+        // Ensure boundaries wrapped (Toroidal space)
+        tx = (tx + GRID_W) % GRID_W;
+        ty = (ty + GRID_H) % GRID_H;
+
+        // Chemotaxis: Smell pheromone gradients around
+        // Sense 8 directions
+        let gradX = 0;
+        let gradY = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            let nx = (tx + dx + GRID_W) % GRID_W;
+            let ny = (ty + dy + GRID_H) % GRID_H;
+            let pVal = pheromone[ny][nx];
+            gradX += dx * pVal;
+            gradY += dy * pVal;
+          }
+        }
+
+        // Normalize gradient
+        let gradLen = Math.sqrt(gradX * gradX + gradY * gradY);
+        if (gradLen > 0.01) {
+          gradX /= gradLen;
+          gradY /= gradLen;
+        } else {
+          gradX = 0;
+          gradY = 0;
+        }
+
+        // Apply noise vs chemotaxis orientation
+        let angle = Math.random() * Math.PI * 2;
+        let noiseX = Math.cos(angle);
+        let noiseY = Math.sin(angle);
+
+        // Termite orientation = blend(gradient, noise)
+        let alpha = 1.0 - config.random_noise_level; // Attractiveness to pheromones
+        let targetX = gradX * alpha + noiseX * (1 - alpha);
+        let targetY = gradY * alpha + noiseY * (1 - alpha);
+
+        // Smooth movement direction
+        t.vx = t.vx * 0.7 + targetX * 0.3;
+        t.vy = t.vy * 0.7 + targetY * 0.3;
+
+        // Update position (wrap)
+        t.x = (t.x + t.vx * speed + GRID_W) % GRID_W;
+        t.y = (t.y + t.vy * speed + GRID_H) % GRID_H;
+
+        // Current tile after movement
+        let ntx = Math.floor(t.x);
+        let nty = Math.floor(t.y);
+        ntx = (ntx + GRID_W) % GRID_W;
+        nty = (nty + GRID_H) % GRID_H;
+
+        let H = pillars[nty][ntx];
+        let P = pheromone[nty][ntx];
+
+        // Pick up or Deposit Logic (Quantitative Stigmergy Core)
+        if (!t.carrying) {
+          // If NOT carrying, pick up clay with probability inverse to pheromones and proportional to local soil height
+          // It's easier to rob soil from flat ground or low-pheromone zones
+          let pFactor = 1.0 / (1.0 + P * 1.5);
+          let pickupProb = 0.05 * H * pFactor;
+          
+          if (H > 0.5 && Math.random() < pickupProb * pickUpRate) {
+            pillars[nty][ntx] = Math.max(0, H - 1.0);
+            t.carrying = true;
+          }
+        } else {
+          // If carrying, deposit clay with probability scaling with local pheromone (Positive Feedback!)
+          // Sigmoidal response to pheromones
+          let pSq = P * P;
+          let k = 4.0; // Saturation constant
+          let depositProb = 0.01 + 0.5 * (pSq / (k + pSq));
+          
+          if (Math.random() < depositProb * depositRate) {
+            pillars[nty][ntx] += 1.0;
+            // Also deposit pheromones onto the spot
+            pheromone[nty][ntx] += pDepositFactor;
+            t.carrying = false;
+          }
+        }
+      });
+
+      // 2. Environmental Pheromone Evolution (Diffusion & Evaporation)
+      let nextPheromone = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(0));
+      const D = 0.15; // Diffusion rate
+
+      for (let y = 0; y < GRID_H; y++) {
+        for (let x = 0; x < GRID_W; x++) {
+          let pVal = pheromone[y][x];
+          
+          // Diffusion from 4 neighbors
+          let left = pheromone[y][(x - 1 + GRID_W) % GRID_W];
+          let right = pheromone[y][(x + 1) % GRID_W];
+          let up = pheromone[(y - 1 + GRID_H) % GRID_H][x];
+          let down = pheromone[(y + 1) % GRID_H][x];
+
+          let diffusedVal = pVal + D * (left + right + up + down - 4 * pVal);
+          
+          // Evaporation (Negative feedback)
+          nextPheromone[y][x] = diffusedVal * (1.0 - config.pheromone_evaporation_rate);
+          if (nextPheromone[y][x] < 0.001) nextPheromone[y][x] = 0;
+        }
+      }
+      pheromone = nextPheromone;
+
+      // Update real-time statistics
+      calculateStats();
+    }
+
+    // --- Statistics Computation ---
+    function calculateStats() {
+      let sumH = 0;
+      let count = GRID_W * GRID_H;
+      let sumSqH = 0;
+
+      for (let y = 0; y < GRID_H; y++) {
+        for (let x = 0; x < GRID_W; x++) {
+          let h = pillars[y][x];
+          sumH += h;
+          sumSqH += h * h;
+        }
+      }
+
+      let meanH = sumH / count;
+      let varianceH = (sumSqH / count) - (meanH * meanH);
+      orderParameter = Math.sqrt(Math.max(0, varianceH));
+
+      // Compute individual pillars (Local maxima above height threshold)
+      let peaks = 0;
+      for (let y = 0; y < GRID_H; y++) {
+        for (let x = 0; x < GRID_W; x++) {
+          let h = pillars[y][x];
+          if (h > 6.0) { // Height threshold
+            let isMax = true;
+            for (let dy = -2; dy <= 2; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                let nx = (x + dx + GRID_W) % GRID_W;
+                let ny = (y + dy + GRID_H) % GRID_H;
+                if (pillars[ny][nx] > h) {
+                  isMax = false;
+                  break;
+                }
+              }
+              if (!isMax) break;
+            }
+            if (isMax) peaks++;
+          }
+        }
+      }
+      computedPillarsCount = peaks;
+    }
+
+    // --- Rendering Functions ---
+    function drawSimulation() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cellW = canvas.width / GRID_W;
+      const cellH = canvas.height / GRID_H;
+
+      // 1. Render Pheromone Field as green/blue glow grid
+      for (let y = 0; y < GRID_H; y++) {
+        for (let x = 0; x < GRID_W; x++) {
+          let pVal = pheromone[y][x];
+          if (pVal > 0.05) {
+            let intensity = Math.min(0.8, pVal / 10);
+            ctx.fillStyle = `rgba(16, 185, 129, ${intensity})`; // Emerald glow
+            ctx.fillRect(x * cellW, y * cellH, cellW + 0.5, cellH + 0.5);
+          }
+        }
+      }
+
+      // 2. Render Soil Pillars (Using 3D-like shaded circles)
+      for (let y = 0; y < GRID_H; y++) {
+        for (let x = 0; x < GRID_W; x++) {
+          let h = pillars[y][x];
+          if (h > 1.0) {
+            let cx = (x + 0.5) * cellW;
+            let cy = (y + 0.5) * cellH;
+            let radius = Math.min(cellW * 1.5, Math.sqrt(h) * (cellW * 0.45));
+            
+            // Shaded 3D dome gradient
+            let gradient = ctx.createRadialGradient(
+              cx - radius*0.3, cy - radius*0.3, radius*0.1,
+              cx, cy, radius
+            );
+            
+            // Color map according to height
+            if (h < 5.0) {
+              gradient.addColorStop(0, '#f97316'); // Bronze/Orange (Low)
+              gradient.addColorStop(1, '#7c2d12');
+            } else if (h < 12.0) {
+              gradient.addColorStop(0, '#fbbf24'); // Yellow Amber (Mid)
+              gradient.addColorStop(1, '#9a3412');
+            } else {
+              gradient.addColorStop(0, '#fef08a'); // Bright gold (Tall Peak)
+              gradient.addColorStop(1, '#ea580c');
+            }
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Tiny peak highlight for extremely tall pillars
+            if (h > 10.0) {
+              ctx.beginPath();
+              ctx.arc(cx - radius*0.2, cy - radius*0.2, radius*0.2, 0, Math.PI*2);
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+              ctx.fill();
+            }
+          }
+        }
+      }
+
+      // 3. Render Termites (as small organic moving elements)
+      termites.forEach(t => {
+        let cx = t.x * cellW;
+        let cy = t.y * cellH;
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+        
+        // Rotate towards movement vector
+        let angle = Math.atan2(t.vy, t.vx);
+        ctx.rotate(angle);
+
+        // Termite body colors: carrying soil or empty
+        if (t.carrying) {
+          // Small soil pellet carried
+          ctx.beginPath();
+          ctx.arc(4, 0, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#f97316';
+          ctx.fill();
+
+          // Body
+          ctx.beginPath();
+          ctx.ellipse(-1, 0, 3, 1.8, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#ea580c';
+          ctx.fill();
+        } else {
+          // Normal termite body
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 3.5, 1.5, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#f59e0b';
+          ctx.fill();
+        }
+
+        // Head (smaller dot)
+        ctx.beginPath();
+        ctx.arc(2.5, 0, 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#78350f';
+        ctx.fill();
+
+        ctx.restore();
+      });
+
+      // Update the texts in HUD
+      document.getElementById('order-parameter').innerHTML = `${orderParameter.toFixed(2)} <span class="text-[9px] text-slate-400 font-normal">σ</span>`;
+      document.getElementById('pillar-count').innerHTML = `${computedPillarsCount} <span class="text-[9px] text-slate-400 font-normal">个</span>`;
+
+      // Update Phase status
+      const phaseStatusText = document.getElementById('phase-status');
+      const phaseLight = document.getElementById('phase-light');
+
+      if (orderParameter < 1.1) {
+        phaseStatusText.innerText = "均匀无序相 (Disordered Phase)";
+        phaseStatusText.className = "text-xs font-bold text-sky-400 mt-0.5";
+        phaseLight.className = "w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]";
+      } else if (orderParameter >= 1.1 && orderParameter < 2.5) {
+        phaseStatusText.innerText = "分岔自组织相 (Emergent Order)";
+        phaseStatusText.className = "text-xs font-bold text-violet-400 mt-0.5";
+        phaseLight.className = "w-2.5 h-2.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.6)] animate-pulse";
+      } else {
+        phaseStatusText.innerText = "强反馈巨柱相 (Coalesced Peaks)";
+        phaseStatusText.className = "text-xs font-bold text-amber-400 mt-0.5";
+        phaseLight.className = "w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]";
+      }
+    }
+
+    // --- Interactive Phase Diagram Canvas ---
+    function drawPhaseDiagram() {
+      const w = phaseCanvas.width = phaseCanvas.clientWidth * 2;
+      const h = phaseCanvas.height = phaseCanvas.clientHeight * 2;
+      
+      phaseCtx.clearRect(0, 0, w, h);
+      
+      // Grid lines & boundaries
+      phaseCtx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+      phaseCtx.lineWidth = 1;
+      
+      // Draw standard phase dividing curve (Qualitative bifurcation line)
+      // Transition from disordered to ordered: Evaporation is proportional to Density^0.8
+      phaseCtx.beginPath();
+      for (let x = 0; x < w; x++) {
+        let densityNorm = x / w; // 0 to 1
+        // Qualitative formula mapping density to critical evaporation
+        let critEvapNorm = 0.8 * Math.pow(densityNorm, 0.7);
+        let y = h - (critEvapNorm * h);
+        if (x === 0) phaseCtx.moveTo(x, y);
+        else phaseCtx.lineTo(x, y);
+      }
+      phaseCtx.lineTo(w, h);
+      phaseCtx.lineTo(0, h);
+      phaseCtx.closePath();
+      
+      // Area highlights
+      phaseCtx.fillStyle = 'rgba(139, 92, 246, 0.04)'; // Self-organization area
+      phaseCtx.fill();
+      
+      // Draw dividing border
+      phaseCtx.beginPath();
+      for (let x = 0; x < w; x++) {
+        let densityNorm = x / w;
+        let critEvapNorm = 0.8 * Math.pow(densityNorm, 0.7);
+        let y = h - (critEvapNorm * h);
+        if (x === 0) phaseCtx.moveTo(x, y);
+        else phaseCtx.lineTo(x, y);
+      }
+      phaseCtx.strokeStyle = 'rgba(139, 92, 246, 0.25)';
+      phaseCtx.lineWidth = 2;
+      phaseCtx.setLineDash([4, 4]);
+      phaseCtx.stroke();
+      phaseCtx.setLineDash([]);
+
+      // Axis label guides
+      phaseCtx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+      phaseCtx.font = '16px "Fira Code", monospace';
+      phaseCtx.fillText('密度 (Density) ➔', w - 160, h - 12);
+      
+      phaseCtx.save();
+      phaseCtx.translate(18, 140);
+      phaseCtx.rotate(-Math.PI / 2);
+      phaseCtx.fillText('挥发率 (Evaporation) ➔', 0, 0);
+      phaseCtx.restore();
+
+      // Current system state coordinate pointer
+      // Map current slider variables to 2D plot
+      const curX = ((config.builder_density - 50) / 350) * w;
+      const curY = h - ((config.pheromone_evaporation_rate - 0.005) / 0.115) * h;
+
+      // Draw pointer halo
+      phaseCtx.beginPath();
+      phaseCtx.arc(curX, curY, 14, 0, Math.PI * 2);
+      phaseCtx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+      phaseCtx.fill();
+
+      // Draw pointer core dot
+      phaseCtx.beginPath();
+      phaseCtx.arc(curX, curY, 6, 0, Math.PI * 2);
+      phaseCtx.fillStyle = '#ef4444';
+      phaseCtx.strokeStyle = '#ffffff';
+      phaseCtx.lineWidth = 2;
+      phaseCtx.fill();
+      phaseCtx.stroke();
+    }
+
+    // --- State Machine & Button Controller ---
+    function setSimulationState(running) {
+      state.running = running;
+      const startBtn = document.getElementById('start-btn');
+      
+      if (running) {
+        startBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          暂停模拟
+        `;
+        startBtn.className = "flex-2 sm:flex-none px-8 py-2.5 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-500 text-white active:scale-95 transition-all duration-150 shadow-lg shadow-amber-600/25 flex items-center justify-center gap-1.5";
+      } else {
+        startBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          启动模拟
+        `;
+        startBtn.className = "flex-2 sm:flex-none px-8 py-2.5 text-xs font-bold rounded-lg bg-violet-600 hover:bg-violet-500 text-white active:scale-95 transition-all duration-150 shadow-lg shadow-violet-600/25 flex items-center justify-center gap-1.5";
+      }
+    }
+
+    function toggleSimulation() {
+      setSimulationState(!state.running);
+    }
+
+    function resetSimulation() {
+      setSimulationState(false);
+      initGrids();
+      calculateStats();
+      drawSimulation();
+      drawPhaseDiagram();
+    }
+
+    // --- Dynamic Slider Sync ---
+    function updateVariable(name, value) {
+      config[name] = value;
+      
+      // Update UI displays
+      const slider = document.getElementById(`${name}-slider`);
+      const display = document.getElementById(`${name}-display`);
+      
+      if (slider) slider.value = value;
+      
+      if (display) {
+        if (name === 'builder_density') {
+          display.innerText = `${value} 只`;
+        } else if (name === 'pheromone_evaporation_rate') {
+          display.innerText = `${value.toFixed(3)} /s`;
+        } else if (name === 'random_noise_level') {
+          display.innerText = `${value.toFixed(2)}`;
+        }
+      }
+
+      // Special handling: Builder density slider scales active agents array instantly
+      if (name === 'builder_density') {
+        let diff = value - termites.length;
+        if (diff > 0) {
+          for(let i = 0; i < diff; i++) {
+            termites.push({
+              x: Math.random() * GRID_W,
+              y: Math.random() * GRID_H,
+              vx: (Math.random() - 0.5) * 2,
+              vy: (Math.random() - 0.5) * 2,
+              carrying: Math.random() < 0.3
+            });
+          }
+        } else if (diff < 0) {
+          termites.splice(diff); // Remove extras
+        }
+      }
+
+      drawPhaseDiagram();
+    }
+
+    // --- Preset Loaders ---
+    function applyPreset(presetIndex) {
+      const presets = [
+        { density: 80, evap: 0.10, noise: 0.40 },   // Disordered
+        { density: 220, evap: 0.03, noise: 0.30 },  // Ordered
+        { density: 350, evap: 0.008, noise: 0.20 }  // Merge Coalescence
+      ];
+
+      const chosen = presets[presetIndex - 1];
+      
+      // Update config & slider values
+      updateVariable('builder_density', chosen.density);
+      updateVariable('pheromone_evaporation_rate', chosen.evap);
+      updateVariable('random_noise_level', chosen.noise);
+
+      // Re-init with correct settings
+      resetSimulation();
+      setSimulationState(true); // Auto start to show change
+    }
+
+    // --- Main Loop ---
+    function loop() {
+      updateSimulation();
+      drawSimulation();
+      requestAnimationFrame(loop);
+    }
+
+    // --- Event Listeners Registration ---
+    document.getElementById('start-btn').addEventListener('click', toggleSimulation);
+    document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+
+    // Preset buttons
+    document.getElementById('preset-1').addEventListener('click', () => applyPreset(1));
+    document.getElementById('preset-2').addEventListener('click', () => applyPreset(2));
+    document.getElementById('preset-3').addEventListener('click', () => applyPreset(3));
+
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleSimulation();
+      } else if (e.code === 'KeyR') {
+        e.preventDefault();
+        resetSimulation();
+      }
+    });
+
+    // Slider inputs
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const name = e.target.dataset.var;
+        const val = parseFloat(e.target.value);
+        updateVariable(name, val);
+      });
+    });
+
+    // Window Resize Event
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawSimulation();
+      drawPhaseDiagram();
+    });
+
+    // --- Initializing System ---
+    // Start standard simulation sequence
+    resizeCanvas();
+    initGrids();
+    calculateStats();
+    drawSimulation();
+    drawPhaseDiagram();
+    requestAnimationFrame(loop);
+
+    // --- Teacher Actions Interface (postMessage) ---
+    window.addEventListener('message', function(event) {
+      const { type, target, state: msgState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (msgState) {
+            Object.entries(msgState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(139, 92, 246, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(139,92,246,0.95); color:white; padding:8px 12px; border-radius:8px; font-size:14px; z-index:1000; animation:fadeIn 0.3s;';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Styles dynamic injection for highlights and annotations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse-highlight { 
+        0%, 100% { outline-color: rgba(139, 92, 246, 0.8); } 
+        50% { outline-color: rgba(139, 92, 246, 0.4); } 
+      } 
+      @keyframes fadeIn { 
+        from { opacity: 0; transform: translateY(10px); } 
+        to { opacity: 1; transform: translateY(0); } 
+      }
+    `;
+    document.head.appendChild(style);
+
+  </script>
+</body>
+</html>

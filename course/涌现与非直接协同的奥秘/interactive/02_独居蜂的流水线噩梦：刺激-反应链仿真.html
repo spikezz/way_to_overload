@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>非直接协同与行为链条模拟 (Sequential Behavior & Stigmergy)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Prevent text selection during rapid interactions */
+    .no-select {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    /* Touch optimization */
+    input[type="range"] {
+      touch-action: manipulation;
+    }
+    /* Dynamic pulsing effect for visual feedback */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.4); }
+      50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.8); }
+    }
+    .active-glow {
+      animation: pulse-glow 2s infinite;
+    }
+    /* Monospace class for real-time telemetry */
+    .telemetry-font {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col lg:flex-row overflow-x-hidden no-select">
+
+  <!-- Widget Configuration Metadata -->
+  <script type="application/json" id="widget-config">
+    {
+      "type": "simulation",
+      "concept": "sequential_behavior_and_stigmergy",
+      "description": "模拟独居泥蜂的5阶段漏斗筑巢行为。展示行为链条（Stimulus-Response Chain）在环境扰动下如何形成‘套娃式’异常双重漏斗，或在多蜂环境下通过非直接协同（Stigmergy）实现无缝异步合作。",
+      "variables": [
+        { "name": "behavioral_rigidity_index", "label": "行为刻板度 (Rigidity)", "min": 0.0, "max": 1.0, "default": 0.8, "step": 0.1, "unit": "" },
+        { "name": "pellet_apply_rate", "label": "筑巢效率 (Build Speed)", "min": 1, "max": 5, "default": 2, "step": 1, "unit": "x" },
+        { "name": "wasp_count", "label": "泥蜂数量 (Wasps)", "min": 1, "max": 2, "default": 1, "step": 1, "unit": "只" }
+      ],
+      "presets": [
+        { "name": "标准5阶段筑巢", "variables": { "behavioral_rigidity_index": 0.4, "pellet_apply_rate": 2, "wasp_count": 1 } },
+        { "name": "双重漏斗异常 (套娃陷阱)", "variables": { "behavioral_rigidity_index": 0.9, "pellet_apply_rate": 3, "wasp_count": 1 } },
+        { "name": "非直接协同 (无缝接力)", "variables": { "behavioral_rigidity_index": 0.5, "pellet_apply_rate": 2, "wasp_count": 2 } }
+      ]
+    }
+  </script>
+
+  <!-- Left Sidebar: Controls & Science explanations -->
+  <div id="controls" class="w-full lg:w-[420px] shrink-0 bg-slate-900 border-b lg:border-r lg:border-b-0 border-slate-800 p-5 flex flex-col max-h-[45vh] lg:max-h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+    
+    <!-- Title Section -->
+    <div class="mb-4">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">行为生态学</span>
+        <span class="px-2 py-0.5 text-xs font-semibold bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded">系统科学</span>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-white flex flex-wrap items-center gap-1.5">
+        <span>泥蜂筑巢行为链与非直接协同</span>
+        <span class="text-xs text-slate-400 font-normal">Stigmergy Simulation</span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">
+        通过模拟泥蜂（<i>Paralastor sp.</i>）的筑巢过程，探究环境介导的刺激-反应机制（Stigmergy/非直接协同）及行为分岔。
+      </p>
+    </div>
+
+    <!-- Interactive Variables Panel -->
+    <div class="bg-slate-950/40 p-3.5 rounded-xl border border-slate-800/60 mb-4 space-y-4">
+      <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">控制参数 / Control Panel</h2>
+      
+      <!-- Behavioral Rigidity -->
+      <div class="space-y-1">
+        <div class="flex justify-between items-center text-xs">
+          <label for="behavioral_rigidity_index-slider" class="font-medium text-slate-300 flex items-center gap-1">
+            行为刻板度 <span class="text-[10px] text-slate-500">Rigidity</span>
+          </label>
+          <span class="telemetry-font font-bold text-amber-400" id="rigidity-display">0.8</span>
+        </div>
+        <input 
+          type="range" 
+          id="behavioral_rigidity_index-slider" 
+          min="0.0" 
+          max="1.0" 
+          step="0.1" 
+          value="0.8"
+          class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none"
+        >
+        <div class="flex justify-between text-[9px] text-slate-500">
+          <span>低 (能修复损毁)</span>
+          <span>高 (机械式链条反应)</span>
+        </div>
+      </div>
+
+      <!-- Build Speed -->
+      <div class="space-y-1">
+        <div class="flex justify-between items-center text-xs">
+          <label for="pellet_apply_rate-slider" class="font-medium text-slate-300">
+            筑巢效率 <span class="text-[10px] text-slate-500">Build Speed</span>
+          </label>
+          <span class="telemetry-font font-bold text-amber-400" id="speed-display">2x</span>
+        </div>
+        <input 
+          type="range" 
+          id="pellet_apply_rate-slider" 
+          min="1" 
+          max="5" 
+          step="1" 
+          value="2"
+          class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none"
+        >
+      </div>
+
+      <!-- Wasps Count -->
+      <div class="space-y-1">
+        <div class="flex justify-between items-center text-xs">
+          <label for="wasp_count-slider" class="font-medium text-slate-300">
+            泥蜂数量 <span class="text-[10px] text-slate-500">Wasp Population</span>
+          </label>
+          <span class="telemetry-font font-bold text-amber-400" id="wasps-display">1 只</span>
+        </div>
+        <input 
+          type="range" 
+          id="wasp_count-slider" 
+          min="1" 
+          max="2" 
+          step="1" 
+          value="1"
+          class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 focus:outline-none"
+        >
+      </div>
+    </div>
+
+    <!-- Active Intervention -->
+    <div class="bg-slate-950/40 p-3.5 rounded-xl border border-slate-800/60 mb-4 space-y-3">
+      <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">环境扰动干预 / Disturbances</h2>
+      <p class="text-[11px] text-slate-400">在特定筑巢阶段，人为施加物理破坏，观察行为链条是否崩溃：</p>
+      
+      <div class="grid grid-cols-2 gap-2">
+        <button 
+          id="damage-flange-btn" 
+          class="px-2.5 py-2 text-xs font-semibold bg-red-950/40 hover:bg-red-900/40 border border-red-900/30 hover:border-red-500/50 text-red-300 hover:text-red-200 rounded-lg transition duration-200 cursor-pointer text-center"
+          title="在漏斗盘外缘开一个孔，模拟掠食者或物理损毁"
+        >
+          💥 漏斗盘开孔 (破坏 S3)
+        </button>
+        <button 
+          id="damage-neck-btn" 
+          class="px-2.5 py-2 text-xs font-semibold bg-orange-950/40 hover:bg-orange-900/40 border border-orange-900/30 hover:border-orange-500/50 text-orange-300 hover:text-orange-200 rounded-lg transition duration-200 cursor-pointer text-center"
+          title="折断已建好的泥罐颈部"
+        >
+          🔨 摧毁泥罐颈 (破坏 S2)
+        </button>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="mb-4 space-y-2">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">教学预设 / Presets</h2>
+      <div class="grid grid-cols-3 gap-1.5">
+        <button id="preset-normal" class="px-1.5 py-2 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg transition text-slate-300 text-center">
+          1. 标准筑巢
+        </button>
+        <button id="preset-trap" class="px-1.5 py-2 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg transition text-slate-300 text-center">
+          2. 套娃循环
+        </button>
+        <button id="preset-coop" class="px-1.5 py-2 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg transition text-slate-300 text-center">
+          3. 无缝接力
+        </button>
+      </div>
+    </div>
+
+    <!-- Science Explanation Panel (Static HUD style) -->
+    <div class="mt-auto bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+      <h3 class="text-xs font-bold text-amber-400 mb-1 flex items-center gap-1">
+        💡 行为链条本质 (Stimulus-Response Chain)
+      </h3>
+      <p class="text-[11px] text-slate-300 leading-relaxed">
+        前一阶段的<b>物理成果</b>构成下一阶段行为的<b>释放刺激</b>（<span class="text-amber-300 font-semibold text-[10px] telemetry-font">S_n → R_n</span>）。
+        若在阶段3（漏斗 flange 形成）进行扰动开孔：
+        <br><strong class="text-red-400">刻板泥蜂</strong>将再次识别到 
+        <span class="text-amber-300 font-semibold text-[10px] telemetry-font">S_1/S_2</span> 
+        刺激（空洞破口），从而在漏斗上<b>套娃式</b>搭建第二重漏斗，陷入死循环！
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Right/Main Interactive Canvas Area -->
+  <div class="flex-grow flex flex-col relative min-h-[55vh] lg:min-h-0">
+    
+    <!-- Real-time HUD overlay (top) -->
+    <div class="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-2 pointer-events-none">
+      
+      <!-- Simulation Status -->
+      <div class="bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 pointer-events-auto shadow-lg">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" id="running-ping"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500" id="running-dot"></span>
+        </span>
+        <span class="text-xs font-bold text-slate-300" id="sim-status-txt">准备就绪</span>
+      </div>
+
+      <!-- Behavioral State Display -->
+      <div class="bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 pointer-events-auto shadow-lg">
+        <span class="text-[11px] font-bold text-slate-400">当前主刺激:</span>
+        <span class="text-[11px] telemetry-font font-bold text-emerald-400" id="current-stimulus-display">S0 - 裸露地基</span>
+      </div>
+
+      <!-- Double Funnel Warning (Initially Hidden) -->
+      <div id="nested-alert" class="hidden bg-red-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-red-700/50 flex items-center gap-2 shadow-lg animate-bounce">
+        <span class="text-xs text-red-200 font-semibold">⚠️ 触发异常套娃现象 (Double Funnel)!</span>
+      </div>
+    </div>
+
+    <!-- Active Behavioral Chain Map Overlay (Floating bottom right) -->
+    <div class="absolute bottom-4 right-4 z-10 bg-slate-900/95 backdrop-blur-md p-3.5 rounded-xl border border-slate-800/80 shadow-2xl pointer-events-auto max-w-[280px]">
+      <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex justify-between items-center">
+        <span>行为链反应状态表</span>
+        <span class="text-[9px] text-amber-500 font-normal">S-R Mapping</span>
+      </h4>
+      <div class="space-y-1 text-[11px]" id="chain-map-container">
+        <!-- Dyn. generated from JS -->
+        <div class="flex justify-between items-center p-1 rounded transition" id="step-s1">
+          <span class="text-slate-400 font-medium">S1 (空裸地面) → R1 (泥管基础)</span>
+          <span class="h-1.5 w-1.5 rounded-full bg-slate-700" id="indicator-s1"></span>
+        </div>
+        <div class="flex justify-between items-center p-1 rounded transition" id="step-s2">
+          <span class="text-slate-400 font-medium">S2 (直泥管口) → R2 (外扩扩口)</span>
+          <span class="h-1.5 w-1.5 rounded-full bg-slate-700" id="indicator-s2"></span>
+        </div>
+        <div class="flex justify-between items-center p-1 rounded transition" id="step-s3">
+          <span class="text-slate-400 font-medium">S3 (外扩盘面) → R3 (平整铺盘)</span>
+          <span class="h-1.5 w-1.5 rounded-full bg-slate-700" id="indicator-s3"></span>
+        </div>
+        <div class="flex justify-between items-center p-1 rounded transition" id="step-s4">
+          <span class="text-slate-400 font-medium">S4 (宽盘建成) → R4 (内壁涂抹)</span>
+          <span class="h-1.5 w-1.5 rounded-full bg-slate-700" id="indicator-s4"></span>
+        </div>
+        <div class="flex justify-between items-center p-1 rounded transition" id="step-s5">
+          <span class="text-slate-400 font-medium">S5 (平滑巢室) → R5 (泥团封口)</span>
+          <span class="h-1.5 w-1.5 rounded-full bg-slate-700" id="indicator-s5"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="flex-grow w-full h-full min-h-[380px] bg-slate-950 flex items-center justify-center relative">
+      <canvas id="nestCanvas" class="w-full h-full block touch-none"></canvas>
+    </div>
+
+    <!-- Bottom Controls Overlay -->
+    <div class="absolute bottom-4 left-4 z-10 flex gap-2">
+      <button 
+        id="start-btn" 
+        class="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-bold text-sm shadow-lg hover:shadow-amber-500/20 active:scale-95 transition-all duration-200 cursor-pointer flex items-center gap-2"
+      >
+        <span>⚡ 启动</span>
+      </button>
+      <button 
+        id="reset-btn" 
+        class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm shadow-md active:scale-95 transition-all duration-200 cursor-pointer"
+      >
+        重置
+      </button>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Simulation Logic -->
+  <script>
+    // --- Global Simulation Configurations & State ---
+    const config = {
+      canvasWidth: 800,
+      canvasHeight: 600,
+      mudPitX: 700,
+      mudPitY: 480,
+    };
+
+    let state = {
+      running: false,
+      ended: false,
+      paused: false,
+      rigidity: 0.8,
+      speedMultiplier: 2,
+      waspCount: 1,
+      time: 0,
+    };
+
+    // Nest Structure Data Tree
+    class NestBranch {
+      constructor(originX, originY, baseWidth, scale, isSubBranch = false, parentFlangeSide = 'left') {
+        this.originX = originX;
+        this.originY = originY;
+        this.baseWidth = baseWidth;
+        this.scale = scale;
+        this.isSubBranch = isSubBranch;
+        this.parentFlangeSide = parentFlangeSide; // 'left' or 'right'
+
+        this.stage = 1; // 1: Base Tube, 2: Neck Flare, 3: Flange Rim, 4: Smoothing, 5: Sealing
+        this.progress = 0; // 0 to 100 within current stage
+
+        this.tubeHeight = 0;     // Stage 1 builds up to 60px * scale
+        this.flareWidth = 0;      // Stage 2 flares outward to 30px * scale each side
+        this.flangeWidth = 0;     // Stage 3 spreads flat wide flange out to 50px * scale
+        this.smoothProgress = 0;  // Stage 4 inner polish
+        this.sealProgress = 0;    // Stage 5 plug top
+
+        this.damaged = false;
+        this.damageType = null; // 'flange' or 'neck'
+        this.damageX = 0;
+        this.damageY = 0;
+        this.subBranch = null; // Stigmergic Loop: A nest branch sprouted inside/on top of another
+      }
+
+      // Check which stage is active and target position
+      getBuildingTarget() {
+        // If there's a sub-branch, build on that first (stigmergy chain transfer)
+        if (this.subBranch) {
+          return this.subBranch.getBuildingTarget();
+        }
+
+        const oy = this.originY;
+        const ox = this.originX;
+        const sc = this.scale;
+
+        if (this.stage === 1) {
+          // Building tube upward - alternate left and right wall tip
+          const height = (this.progress / 100) * (70 * sc);
+          const side = Math.random() > 0.5 ? -1 : 1;
+          return {
+            x: ox + side * (this.baseWidth / 2),
+            y: oy - height,
+            stage: 1,
+            desc: "修筑管道基础 (S1 -> R1)"
+          };
+        } else if (this.stage === 2) {
+          // Flare transition curve
+          const flareH = 70 * sc;
+          const progressY = (this.progress / 100) * (40 * sc);
+          const targetY = oy - flareH - progressY;
+          const currentFlareOffset = (this.progress / 100) * (25 * sc);
+          const side = Math.random() > 0.5 ? -1 : 1;
+          return {
+            x: ox + side * (this.baseWidth / 2 + currentFlareOffset),
+            y: targetY,
+            stage: 2,
+            desc: "构筑外张领口 (S2 -> R2)"
+          };
+        } else if (this.stage === 3) {
+          // Wide flange spreading outward flatly
+          const flareH = 70 * sc;
+          const flareDeltaY = 40 * sc;
+          const rimY = oy - flareH - flareDeltaY;
+          const flareW = this.baseWidth / 2 + 25 * sc;
+          const spreadWidth = (this.progress / 100) * (45 * sc);
+          const side = Math.random() > 0.5 ? -1 : 1;
+          return {
+            x: ox + side * (flareW + spreadWidth),
+            y: rimY,
+            stage: 3,
+            desc: "扩展平宽漏斗盘 (S3 -> R3)"
+          };
+        } else if (this.stage === 4) {
+          // Smoothing inside walls - wasp flies along the inside curve
+          const flareH = 70 * sc;
+          const rimY = oy - flareH - 20 * sc;
+          return {
+            x: ox + (Math.sin(state.time * 0.05) * (this.baseWidth / 3)),
+            y: rimY,
+            stage: 4,
+            desc: "细部涂抹平整 (S4 -> R4)"
+          };
+        } else {
+          // Sealing plug at neck opening
+          return {
+            x: ox,
+            y: oy - (70 * sc),
+            stage: 5,
+            desc: "搬运重泥塞口 (S5 -> R5)"
+          };
+        }
+      }
+
+      // Add building progress
+      applyPellet(amount) {
+        if (this.subBranch) {
+          this.subBranch.applyPellet(amount);
+          return;
+        }
+
+        this.progress += amount;
+        if (this.progress >= 100) {
+          if (this.stage < 5) {
+            this.progress = 0;
+            this.stage++;
+          } else {
+            this.progress = 100;
+          }
+        }
+      }
+    }
+
+    // Wasp Agent Class
+    class Wasp {
+      constructor(id, color) {
+        this.id = id;
+        this.color = color;
+        this.x = 150 + Math.random() * 100;
+        this.y = groundY || 480;
+        this.targetX = config.mudPitX;
+        this.targetY = config.mudPitY;
+        this.state = "GATHERING"; // "GATHERING", "CARRYING_PELLET", "BUILDING", "POLISHING"
+        this.hasPellet = false;
+        this.speed = 3.5;
+        this.wingAngle = 0;
+        this.wingSpeed = 0.5;
+        this.pelletHoldingTime = 0;
+        this.stuckTimer = 0;
+      }
+
+      update(activeNestBranch) {
+        // Wings flap when in action
+        this.wingAngle += this.wingSpeed;
+        if (this.wingAngle > 0.5 || this.wingAngle < -0.5) {
+          this.wingSpeed = -this.wingSpeed;
+        }
+
+        const buildTask = activeNestBranch.getBuildingTarget();
+
+        // High Rigidity Check: Double funnel mechanism triggers if we damaged flange and wasp has high rigidity
+        if (activeNestBranch.damaged && state.rigidity >= 0.6 && !activeNestBranch.subBranch) {
+          // Stigmergic anomaly: the raw damaged edge acts as S1/S2 trigger, starting a brand new nest
+          activeNestBranch.subBranch = new NestBranch(
+            activeNestBranch.damageX, 
+            activeNestBranch.damageY + 5, 
+            16, 
+            activeNestBranch.scale * 0.55, 
+            true,
+            activeNestBranch.damageX < activeNestBranch.originX ? 'left' : 'right'
+          );
+          document.getElementById('nested-alert').classList.remove('hidden');
+        }
+
+        // Behavior State Machine based on environment cues (Stigmergy)
+        switch(this.state) {
+          case "GATHERING":
+            this.targetX = config.mudPitX + (Math.random() * 20 - 10);
+            this.targetY = config.mudPitY + (Math.random() * 10 - 5);
+            
+            // Move toward mud pit
+            this.moveTowards(this.targetX, this.targetY);
+            
+            if (this.distanceTo(config.mudPitX, config.mudPitY) < 30) {
+              this.pelletHoldingTime += 1 * state.speedMultiplier;
+              if (this.pelletHoldingTime > 20) {
+                this.hasPellet = true;
+                this.state = "CARRYING_PELLET";
+                this.pelletHoldingTime = 0;
+              }
+            }
+            break;
+
+          case "CARRYING_PELLET":
+            this.targetX = buildTask.x;
+            this.targetY = buildTask.y - 12; // hover slightly above build spot
+
+            this.moveTowards(this.targetX, this.targetY);
+
+            if (this.distanceTo(buildTask.x, buildTask.y) < 25) {
+              this.state = "BUILDING";
+            }
+            break;
+
+          case "BUILDING":
+            // Laying building block
+            this.x = buildTask.x + Math.sin(state.time * 0.4) * 2;
+            this.y = buildTask.y - 10;
+            this.pelletHoldingTime += 1 * state.speedMultiplier;
+
+            if (this.pelletHoldingTime > 15) {
+              // Apply progress
+              if (activeNestBranch.damaged && state.rigidity < 0.6) {
+                // Low Rigidity (Adaptive): Repairs the breach/hole rather than stacking funnels!
+                activeNestBranch.damaged = false;
+                document.getElementById('nested-alert').classList.add('hidden');
+                // Smooth transition back
+              } else {
+                activeNestBranch.applyPellet(8 * state.speedMultiplier);
+              }
+              this.hasPellet = false;
+              this.state = "GATHERING";
+              this.pelletHoldingTime = 0;
+            }
+            break;
+        }
+      }
+
+      moveTowards(tx, ty) {
+        const dx = tx - this.x;
+        const dy = ty - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 2) {
+          const currentSpeed = this.speed * state.speedMultiplier;
+          this.x += (dx / dist) * currentSpeed;
+          this.y += (dy / dist) * currentSpeed;
+        }
+      }
+
+      distanceTo(tx, ty) {
+        return Math.sqrt((tx - this.x) ** 2 + (ty - this.y) ** 2);
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Turn body depending on direction
+        const facingLeft = this.targetX < this.x;
+        if (facingLeft) {
+          ctx.scale(-1, 1);
+        }
+
+        // Draw Wings (vibrating)
+        ctx.fillStyle = "rgba(226, 232, 240, 0.5)";
+        ctx.strokeStyle = "rgba(255,255,255,0.8)";
+        ctx.lineWidth = 1;
+        ctx.save();
+        ctx.translate(-2, -6);
+        ctx.rotate(-0.5 + this.wingAngle);
+        ctx.beginPath();
+        ctx.ellipse(0, -10, 4, 12, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(-5, -5);
+        ctx.rotate(-1.0 - this.wingAngle);
+        ctx.beginPath();
+        ctx.ellipse(0, -8, 3, 10, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // Wasp Body segments (striped yellow and brown)
+        // Abdomen (gaster)
+        ctx.fillStyle = "#1e293b"; // Dark slate/black
+        ctx.beginPath();
+        ctx.ellipse(12, 3, 7, 13, -Math.PI/6, 0, Math.PI*2);
+        ctx.fill();
+        // Yellow stripes on abdomen
+        ctx.strokeStyle = "#fbbf24"; // Amber/yellow
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(12, 3, 6, -Math.PI/2, Math.PI/4);
+        ctx.stroke();
+
+        // Thorax
+        ctx.fillStyle = "#451a03"; // Rich brown
+        ctx.beginPath();
+        ctx.arc(0, 0, 7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(1, -3, 2, 0, Math.PI*2); // Thorax spot
+        ctx.fill();
+
+        // Head
+        ctx.fillStyle = "#1e293b";
+        ctx.beginPath();
+        ctx.arc(-8, -2, 5, 0, Math.PI*2);
+        ctx.fill();
+        // Eyes
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.arc(-10, -3, 1.5, 0, Math.PI*2);
+        ctx.fill();
+
+        // Wasp legs
+        ctx.strokeStyle = "#78350f";
+        ctx.lineWidth = 1.5;
+        // Front leg
+        ctx.beginPath();
+        ctx.moveTo(-4, 4);
+        ctx.lineTo(-6, 10);
+        ctx.lineTo(-10, 13);
+        ctx.stroke();
+        // Mid leg
+        ctx.beginPath();
+        ctx.moveTo(0, 4);
+        ctx.lineTo(2, 11);
+        ctx.lineTo(1, 15);
+        ctx.stroke();
+        // Back leg
+        ctx.beginPath();
+        ctx.moveTo(5, 4);
+        ctx.lineTo(9, 12);
+        ctx.lineTo(12, 16);
+        ctx.stroke();
+
+        // Mud pellet if carrying
+        if (this.hasPellet) {
+          ctx.fillStyle = "#78350f";
+          ctx.strokeStyle = "#451a03";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(-10, 6, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // Initialize environment objects
+    const canvas = document.getElementById("nestCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let groundY;  // computed in resizeCanvas()
+    let nestX;    // computed in resizeCanvas()
+    let rootBranch;
+    let wasps = [];
+
+    // Resize Canvas securely
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      groundY = canvas.height - 120;
+      nestX = Math.floor(canvas.width * 0.4);
+      config.mudPitX = canvas.width - 90;
+      config.mudPitY = groundY;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    // Initialize nest and wasps AFTER canvas is sized
+    rootBranch = new NestBranch(nestX, groundY, 48, 1.0, false);
+
+    // --- Dynamic UI State Updating ---
+    function updateHUD() {
+      // Rigidity & labels
+      document.getElementById('rigidity-display').innerText = state.rigidity.toFixed(1);
+      document.getElementById('speed-display').innerText = state.speedMultiplier + "x";
+      document.getElementById('wasps-display').innerText = state.waspCount + " 只";
+
+      // Toggle state light and ping
+      const ping = document.getElementById('running-ping');
+      const dot = document.getElementById('running-dot');
+      const text = document.getElementById('sim-status-txt');
+      const startBtn = document.getElementById('start-btn');
+
+      let mode, label, dotClass, statusText;
+      if (state.running) {
+        mode = 'running'; label = '⏸️ 暂停';
+        dotClass = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500";
+        statusText = "筑巢进行中...";
+      } else if (state.ended) {
+        mode = 'ended'; label = '🔄 重新开始';
+        dotClass = "relative inline-flex rounded-full h-2 w-2 bg-blue-500";
+        statusText = "巢穴构筑完毕！";
+      } else {
+        mode = 'paused'; label = '⚡ 启动';
+        dotClass = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
+        statusText = "已暂停";
+      }
+
+      ping.style.display = mode === 'running' ? 'inline-flex' : 'none';
+      dot.className = dotClass;
+      text.innerText = statusText;
+
+      // Only rewrite button HTML on actual mode transitions. Rewriting innerHTML
+      // every frame recreates the inner <span>, so a click landing on the span
+      // would see mousedown/mouseup on different span instances and never fire.
+      if (startBtn.dataset.mode !== mode) {
+        startBtn.dataset.mode = mode;
+        startBtn.innerHTML = "<span>" + label + "</span>";
+        startBtn.classList.remove('bg-amber-500', 'hover:bg-amber-400', 'bg-slate-700', 'hover:bg-slate-600', 'text-slate-100', 'text-slate-950');
+        if (mode === 'running') {
+          startBtn.classList.add('bg-slate-700', 'hover:bg-slate-600', 'text-slate-100');
+        } else {
+          startBtn.classList.add('bg-amber-500', 'hover:bg-amber-400', 'text-slate-950');
+        }
+      }
+
+      // Check current active stage to light up the interactive flowchart
+      let activeBranch = rootBranch;
+      while (activeBranch.subBranch) {
+        activeBranch = activeBranch.subBranch;
+      }
+      
+      const stage = activeBranch.stage;
+      document.getElementById('current-stimulus-display').innerText = `S${stage} - ${getStimulusText(stage)}`;
+
+      // Highlight active behavioral step mapping
+      for (let i = 1; i <= 5; i++) {
+        const itemEl = document.getElementById(`step-s${i}`);
+        const indicator = document.getElementById(`indicator-s${i}`);
+        if (i === stage) {
+          itemEl.className = "flex justify-between items-center p-1 rounded bg-amber-500/10 text-amber-300 font-bold border border-amber-500/20";
+          indicator.className = "h-2 w-2 rounded-full bg-amber-400 animate-pulse";
+        } else {
+          itemEl.className = "flex justify-between items-center p-1 rounded text-slate-400";
+          indicator.className = "h-1.5 w-1.5 rounded-full bg-slate-700";
+        }
+      }
+    }
+
+    function getStimulusText(stage) {
+      switch(stage) {
+        case 1: return "硬地无管道 R1 -> 直管";
+        case 2: return "管口锋利 R2 -> 扩口";
+        case 3: return "领口成型 R3 -> 法兰";
+        case 4: return "宽盘落成 R4 -> 平滑";
+        case 5: return "平整无损 R5 -> 封口";
+        default: return "未明";
+      }
+    }
+
+    // --- Procedural Nest Drawing Engine ---
+    function drawNestBranch(ctx, branch) {
+      const oy = branch.originY;
+      const ox = branch.originX;
+      const sc = branch.scale;
+      const bw = branch.baseWidth;
+
+      ctx.save();
+      ctx.strokeStyle = "#854d0e"; // Clay mud outer profile outline
+      ctx.fillStyle = "#78350f";   // Earth brown nest wall
+      ctx.lineCap = "round";
+
+      // --- Stage 1: Main vertical tube structure ---
+      const activeStage = branch.stage;
+      const progress = branch.progress;
+
+      let tubeH = 0;
+      if (activeStage === 1) {
+        tubeH = (progress / 100) * (70 * sc);
+      } else {
+        tubeH = 70 * sc;
+      }
+
+      // Double lines represents walls of vertical tube base
+      ctx.lineWidth = 6 * sc;
+      ctx.beginPath();
+      ctx.moveTo(ox - bw / 2, oy);
+      ctx.lineTo(ox - bw / 2, oy - tubeH);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(ox + bw / 2, oy);
+      ctx.lineTo(ox + bw / 2, oy - tubeH);
+      ctx.stroke();
+
+      // --- Stage 2: Outer flared collar ---
+      let leftFlareX = ox - bw / 2;
+      let leftFlareY = oy - tubeH;
+      let rightFlareX = ox + bw / 2;
+      let rightFlareY = oy - tubeH;
+
+      if (activeStage >= 2 && tubeH >= 70 * sc) {
+        let flareProg = (activeStage === 2) ? progress / 100 : 1.0;
+        let finalFlareY = (40 * sc) * flareProg;
+        let finalFlareW = (25 * sc) * flareProg;
+
+        leftFlareX = ox - bw / 2 - finalFlareW;
+        leftFlareY = oy - 70 * sc - finalFlareY;
+        rightFlareX = ox + bw / 2 + finalFlareW;
+        rightFlareY = oy - 70 * sc - finalFlareY;
+
+        ctx.lineWidth = 5 * sc;
+        // Curve outwards using quadratic curve
+        ctx.beginPath();
+        ctx.moveTo(ox - bw / 2, oy - 70 * sc);
+        ctx.quadraticCurveTo(ox - bw / 2 - 2, oy - 70 * sc - finalFlareY * 0.4, leftFlareX, leftFlareY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(ox + bw / 2, oy - 70 * sc);
+        ctx.quadraticCurveTo(ox + bw / 2 + 2, oy - 70 * sc - finalFlareY * 0.4, rightFlareX, rightFlareY);
+        ctx.stroke();
+      }
+
+      // --- Stage 3: Dynamic spreading flange collar ---
+      let flangeL_X = leftFlareX;
+      let flangeR_X = rightFlareX;
+
+      if (activeStage >= 3 && activeStage <= 5) {
+        let flangeProg = (activeStage === 3) ? progress / 100 : 1.0;
+        let finalFlangeW = (45 * sc) * flangeProg;
+
+        flangeL_X = leftFlareX - finalFlangeW;
+        flangeR_X = rightFlareX + finalFlangeW;
+
+        ctx.lineWidth = 4 * sc;
+
+        // Draw left side flange with integrated damage puncture detection
+        if (branch.damaged && branch.damageType === 'flange') {
+          // Break flange into two sections, revealing a hole gap
+          const midX = (leftFlareX + flangeL_X) / 2;
+          ctx.beginPath();
+          ctx.moveTo(leftFlareX, leftFlareY);
+          ctx.lineTo(midX + 10 * sc, leftFlareY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(midX - 10 * sc, leftFlareY);
+          ctx.lineTo(flangeL_X, leftFlareY);
+          ctx.stroke();
+
+          // Highlight the edge to simulate raw exposed S1 stimulation cue!
+          ctx.fillStyle = "rgba(239, 68, 68, 0.4)";
+          ctx.beginPath();
+          ctx.arc(midX, leftFlareY, 8 * sc, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Draw continuous clean left flange
+          ctx.beginPath();
+          ctx.moveTo(leftFlareX, leftFlareY);
+          ctx.lineTo(flangeL_X, leftFlareY);
+          ctx.stroke();
+        }
+
+        // Draw right side flange
+        ctx.beginPath();
+        ctx.moveTo(rightFlareX, rightFlareY);
+        ctx.lineTo(flangeR_X, rightFlareY);
+        ctx.stroke();
+      }
+
+      // --- Stage 4: Inside wall smoothing ---
+      if (activeStage >= 4) {
+        // Overlay thin inner polished line
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.6)"; // glowing yellow mud mortar
+        ctx.lineWidth = 1.5 * sc;
+        
+        ctx.beginPath();
+        ctx.moveTo(ox - bw / 2, oy);
+        ctx.lineTo(ox - bw / 2, oy - 70 * sc);
+        ctx.quadraticCurveTo(ox - bw / 2, oy - 85 * sc, leftFlareX, leftFlareY);
+        ctx.lineTo(flangeL_X, leftFlareY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(ox + bw / 2, oy);
+        ctx.lineTo(ox + bw / 2, oy - 70 * sc);
+        ctx.quadraticCurveTo(ox + bw / 2, oy - 85 * sc, rightFlareX, rightFlareY);
+        ctx.lineTo(flangeR_X, rightFlareY);
+        ctx.stroke();
+      }
+
+      // --- Stage 5: Entrance plug sealing ---
+      if (activeStage === 5) {
+        let sealProg = progress / 100;
+        ctx.fillStyle = "#451a03";
+        ctx.beginPath();
+        ctx.ellipse(ox, oy - 70 * sc, (bw / 2) * sealProg, 4 * sc, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fbbf24";
+        ctx.stroke();
+      }
+
+      // Draw sub-branches recursively (representing double funnels)
+      if (branch.subBranch) {
+        drawNestBranch(ctx, branch.subBranch);
+      }
+
+      ctx.restore();
+    }
+
+    // --- Particle effects for mud dust during building ---
+    let particles = [];
+    function createMudSplatter(x, y) {
+      for (let i = 0; i < 4; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 3,
+          vy: -Math.random() * 2 - 1,
+          life: 25 + Math.random() * 15,
+          color: "#b45309"
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.1; // gravity
+        p.life--;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawParticles(ctx) {
+      ctx.save();
+      for (let p of particles) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // --- Main Rendering and Physics Loop ---
+    function loop() {
+      try {
+      if (state.running && !state.paused) {
+        state.time++;
+
+        // Get the bottom-most active nest segment for wasps to query
+        let activeBranch = rootBranch;
+        while (activeBranch.subBranch) {
+          activeBranch = activeBranch.subBranch;
+        }
+
+        // Active nest completes entirely?
+        if (rootBranch.stage === 5 && rootBranch.progress >= 100) {
+          state.running = false;
+          state.ended = true;
+          updateHUD();
+        }
+
+        // Keep loop running if wasps work on nesting
+        for (let i = 0; i < Math.min(state.waspCount, wasps.length); i++) {
+          wasps[i].update(rootBranch);
+          
+          // Generate active particles while building
+          if (wasps[i].state === "BUILDING" && state.time % 3 === 0) {
+            const bt = rootBranch.getBuildingTarget();
+            createMudSplatter(bt.x, bt.y);
+          }
+        }
+        updateParticles();
+      }
+
+      // Drawing cycle
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Draw Ground line and mud pool sources
+      ctx.save();
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(canvas.width, groundY);
+      ctx.stroke();
+
+      // Mud pit source (wet soil)
+      const gradient = ctx.createRadialGradient(config.mudPitX, config.mudPitY, 5, config.mudPitX, config.mudPitY, 60);
+      gradient.addColorStop(0, '#451a03'); // rich wet clay
+      gradient.addColorStop(0.5, '#78350f');
+      gradient.addColorStop(1, '#0f172a');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(config.mudPitX, config.mudPitY + 15, 60, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sign label over mud pit
+      ctx.fillStyle = "rgba(251, 191, 36, 0.9)";
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillText("泥源地 (S1 Source)", config.mudPitX - 42, config.mudPitY - 15);
+      ctx.restore();
+
+      // 2. Draw Dynamic procedural Nest
+      drawNestBranch(ctx, rootBranch);
+
+      // 3. Draw Mud splat particles
+      drawParticles(ctx);
+
+      // 4. Draw Active Wasps
+      for (let i = 0; i < Math.min(state.waspCount, wasps.length); i++) {
+        wasps[i].draw(ctx);
+      }
+
+      // HUD indicators
+      updateHUD();
+      } catch (err) {
+        console.error('[WASP-SIM] loop error (recovered, loop continues):', err);
+      } finally {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    // --- Simulation Controller Commands ---
+    function startSimulation() {
+      if (state.ended) {
+        resetSimulation();
+      }
+      state.running = true;
+      state.paused = false;
+      updateHUD();
+    }
+
+    function pauseSimulation() {
+      state.running = false;
+      state.paused = true;
+      updateHUD();
+    }
+
+    function syncWaspCount() {
+      const colors = ["#fbbf24", "#f59e0b", "#d97706", "#b45309", "#92400e"];
+      while (wasps.length < state.waspCount) {
+        wasps.push(new Wasp(wasps.length + 1, colors[wasps.length % colors.length]));
+      }
+      if (wasps.length > state.waspCount) {
+        wasps.length = state.waspCount;
+      }
+    }
+
+    function resetSimulation() {
+      state.running = false;
+      state.paused = false;
+      state.ended = false;
+      state.time = 0;
+      particles = [];
+
+      // Clear Nest branch tree completely
+      rootBranch = new NestBranch(nestX || 320, groundY || 480, 48, 1.0, false);
+      
+      // Resettle Wasps based on slider count
+      wasps = [];
+      const colors = ["#fbbf24", "#f59e0b", "#d97706", "#b45309", "#92400e"];
+      for (let i = 0; i < state.waspCount; i++) {
+        wasps.push(new Wasp(i + 1, colors[i % colors.length]));
+      }
+
+      document.getElementById('nested-alert').classList.add('hidden');
+      updateHUD();
+    }
+
+    // Direct physical interventions (Perturbations)
+    function damageFlange() {
+      let b = rootBranch;
+      while (b.subBranch) b = b.subBranch;
+
+      // Only logical to pierce a flange if we already built Stage 3 or higher
+      if (b.stage >= 3) {
+        b.damaged = true;
+        b.damageType = 'flange';
+        // Assign coordinate matching left flange
+        b.damageX = b.originX - b.baseWidth/2 - 35 * b.scale;
+        b.damageY = b.originY - 110 * b.scale;
+        
+        // Push wasps away slightly to notify impact
+        for (let w of wasps) {
+          w.x += (Math.random() - 0.5) * 80;
+          w.y -= 40;
+        }
+        createMudSplatter(b.damageX, b.damageY);
+      }
+    }
+
+    function damageNeck() {
+      let b = rootBranch;
+      while (b.subBranch) b = b.subBranch;
+
+      // Sever tube neck (S2 stage regression)
+      if (b.stage >= 2) {
+        b.damaged = true;
+        b.damageType = 'neck';
+        b.damageX = b.originX;
+        b.damageY = b.originY - 60 * b.scale;
+        // Forces step back to Stage 1/2
+        b.stage = 2;
+        b.progress = 20;
+        createMudSplatter(b.damageX, b.damageY);
+      }
+    }
+
+    // Connect slider inputs
+    document.getElementById('behavioral_rigidity_index-slider').addEventListener('input', (e) => {
+      state.rigidity = parseFloat(e.target.value);
+      updateHUD();
+    });
+
+    document.getElementById('pellet_apply_rate-slider').addEventListener('input', (e) => {
+      state.speedMultiplier = parseInt(e.target.value);
+      updateHUD();
+    });
+
+    document.getElementById('wasp_count-slider').addEventListener('input', (e) => {
+      state.waspCount = parseInt(e.target.value);
+      syncWaspCount();
+      updateHUD();
+    });
+
+    // Control Buttons
+    document.getElementById('start-btn').addEventListener('click', () => {
+      if (state.running) {
+        pauseSimulation();
+      } else {
+        startSimulation();
+      }
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+
+    // Manual Intervention Buttons
+    document.getElementById('damage-flange-btn').addEventListener('click', damageFlange);
+    document.getElementById('damage-neck-btn').addEventListener('click', damageNeck);
+
+    // Apply Presets
+    function applyPreset(presetName) {
+      resetSimulation();
+      const configData = JSON.parse(document.getElementById('widget-config').textContent);
+      const preset = configData.presets.find(p => p.name.includes(presetName));
+      if (preset) {
+        const vars = preset.variables;
+        
+        // Apply values to UI & system
+        document.getElementById('behavioral_rigidity_index-slider').value = vars.behavioral_rigidity_index;
+        state.rigidity = vars.behavioral_rigidity_index;
+
+        document.getElementById('pellet_apply_rate-slider').value = vars.pellet_apply_rate;
+        state.speedMultiplier = vars.pellet_apply_rate;
+
+        document.getElementById('wasp_count-slider').value = vars.wasp_count;
+        state.waspCount = vars.wasp_count;
+        syncWaspCount();
+
+        // Custom presets logic triggers
+        if (presetName === '套娃' || presetName === 'trap') {
+          // Double funnel trap: auto-damage flange as soon as it reaches stage 3 to demonstrate loop immediately!
+          const autoTrigger = setInterval(() => {
+            let activeBranch = rootBranch;
+            while (activeBranch.subBranch) activeBranch = activeBranch.subBranch;
+
+            if (activeBranch.stage >= 3) {
+              damageFlange();
+              clearInterval(autoTrigger);
+            }
+          }, 1000);
+        }
+
+        updateHUD();
+        startSimulation();
+      }
+    }
+
+    document.getElementById('preset-normal').addEventListener('click', () => applyPreset('标准'));
+    document.getElementById('preset-trap').addEventListener('click', () => applyPreset('双重漏斗'));
+    document.getElementById('preset-coop').addEventListener('click', () => applyPreset('非直接协同'));
+
+    // --- Keybindings (Touch + Space) ---
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (state.running) pauseSimulation();
+        else startSimulation();
+      } else if (e.code === 'KeyR') {
+        resetSimulation();
+      }
+    });
+
+    // --- Launch System Loop ---
+    resetSimulation();
+    loop();
+
+    // ==========================================
+    // CRITICAL: Teacher Interaction postMessage API
+    // ==========================================
+    window.addEventListener('message', function(event) {
+      const { type, target, state: newState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (newState) {
+            Object.entries(newState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(245, 158, 11, 0.9)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 4000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 45) + 'px; left:' + rect.left + 'px; background:rgba(245,158,11,0.95); color:#000; padding:8px 12px; border-radius:8px; font-size:13px; font-weight:bold; z-index:1000; animation:fadeIn 0.3s; box-shadow:0 10px 15px -3px rgba(0,0,0,0.3)';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 5000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse-highlight { 
+        0%, 100% { outline-color: rgba(245, 158, 11, 0.9); } 
+        50% { outline-color: rgba(245, 158, 11, 0.3); } 
+      } 
+      @keyframes fadeIn { 
+        from { opacity: 0; transform: translateY(10px); } 
+        to { opacity: 1; transform: translateY(0); } 
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

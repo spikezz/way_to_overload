@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>纸蜂蜂巢自组织定性生长模拟 (Polistes Qualitative Stigmergy)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts for Monospace stats -->
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(30, 41, 59, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.5);
+    }
+    .font-mono {
+      font-family: 'Fira Code', monospace;
+    }
+    /* Touch target optimizations */
+    button, input[type="range"] {
+      touch-action: manipulation;
+    }
+    /* Slider custom styles */
+    input[type=range]::-webkit-slider-thumb {
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -8px;
+      border: 2px solid #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+    /* Custom animation for highlighting */
+    @keyframes pulse-highlight {
+      0%, 100% { outline-color: rgba(245, 158, 11, 0.8); }
+      50% { outline-color: rgba(245, 158, 11, 0.3); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col md:flex-row overflow-hidden">
+
+  <!-- Embedded Widget Config -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "qualitative_stigmergy_polistes_comb",
+    "description": "模拟纸蜂(Polistes)蜂巢在二维六角格点上的定性自组织生长。通过对比确定性规则(硬编码)与自然概率规则，揭示局部非直接协同(Stigmergy)如何涌现出完美的宏观圆形蜂巢结构。",
+    "variables": [
+      { "name": "rule_1_probability_2_walls", "label": "S2 筑巢概率 P(S₂)", "min": 0.0, "max": 1.0, "default": 0.08, "step": 0.01, "unit": "" },
+      { "name": "rule_2_probability_3_walls", "label": "S3 筑巢概率 P(S₃)", "min": 0.0, "max": 1.0, "default": 0.80, "step": 0.01, "unit": "" },
+      { "name": "agent_movement_randomness", "label": "筑巢蜂活跃度/帧速率", "min": 5, "max": 100, "default": 30, "step": 5, "unit": "x" }
+    ],
+    "presets": [
+      {
+        "name": "自然概率自组织 (Perfect Round)",
+        "description": "P(S₃) 是 P(S₂) 的10倍。概率差异作为‘表面张力’滤波器自动填补凹角，涌现出完美的圆形蜂巢。",
+        "variables": {
+          "rule_1_probability_2_walls": 0.08,
+          "rule_2_probability_3_walls": 0.80,
+          "agent_movement_randomness": 40
+        }
+      },
+      {
+        "name": "确定性病态发育 (Bifurcation)",
+        "description": "一味执行硬编码规则（如S₂概率极高），导致边缘疯狂分岔，形成松散、易碎的畸形蜂巢结构。",
+        "variables": {
+          "rule_1_probability_2_walls": 0.90,
+          "rule_2_probability_3_walls": 0.95,
+          "agent_movement_randomness": 40
+        }
+      },
+      {
+        "name": "极度稀疏枝状 (Spindly)",
+        "description": "高 P(S₂) 但极低 P(S₃)。蜂巢几乎无法向内填充，只形成单薄的线状网络，极易毁坏。",
+        "variables": {
+          "rule_1_probability_2_walls": 0.40,
+          "rule_2_probability_3_walls": 0.05,
+          "agent_movement_randomness": 40
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Left Column: Controls & Stats -->
+  <div class="w-full md:w-[420px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col h-[45vh] md:h-full z-10 shrink-0 shadow-2xl overflow-y-auto">
+    <!-- Header -->
+    <div class="p-4 border-b border-slate-800 bg-slate-900/50 sticky top-0 backdrop-blur-md z-10">
+      <div class="flex items-center space-x-2 text-amber-500 mb-1">
+        <i data-lucide="hexagon" class="w-6 h-6 animate-pulse"></i>
+        <h1 class="text-lg font-bold tracking-wide">纸蜂筑巢定性自组织模拟</h1>
+      </div>
+      <p class="text-[11px] text-slate-400 font-mono">Polistes Qualitative Stigmergy Simulation</p>
+    </div>
+
+    <!-- Scrollable content area -->
+    <div class="p-4 flex-1 space-y-5">
+      
+      <!-- Theory/Concept Intro Box (Collapsible on mobile) -->
+      <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800/80 text-xs leading-relaxed">
+        <h3 class="font-bold text-amber-400 mb-1 flex items-center">
+          <i data-lucide="info" class="w-3.5 h-3.5 mr-1.5"></i>
+          什么是定性非直接协同 (Qualitative Stigmergy)?
+        </h3>
+        <p class="text-slate-300">
+          纸蜂筑巢依赖环境刺激做出局部决策：<strong>S₁</strong>(1面墙)、<strong>S₂</strong>(2面墙)、<strong>S₃</strong>(3面墙)。自然界中 \(P(S_3) \approx 10 \times P(S_2)\)，这种平滑的概率优势相当于<strong>表面张力</strong>，能自动平滑边界，涌现出完美的圆形蜂巢。一味执行硬编码规则会导致边缘畸形分叉 (<strong class="text-rose-400">Pathological Bifurcation / 病态分岔</strong>)。
+        </p>
+      </div>
+
+      <!-- Live Interactive Stats Dashboard -->
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center">
+          <i data-lucide="bar-chart-2" class="w-4 h-4 mr-1.5 text-indigo-400"></i>
+          蜂巢实时解译指标 (Metrics)
+        </h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800">
+            <div class="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">总巢室数 (Cells)</div>
+            <div id="stat-cells" class="text-xl font-bold text-amber-500 font-mono mt-0.5">1</div>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800">
+            <div class="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">分枝数 (Bifurcations)</div>
+            <div id="stat-branches" class="text-xl font-bold text-rose-500 font-mono mt-0.5">0</div>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800">
+            <div class="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">蜂巢紧凑度 (Compactness)</div>
+            <div id="stat-compactness" class="text-xl font-bold text-emerald-400 font-mono mt-0.5">100%</div>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800">
+            <div class="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">结构稳固度 (Stability)</div>
+            <div id="stat-stability" class="text-xl font-bold text-sky-400 font-mono mt-0.5">100%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center">
+          <i data-lucide="sliders" class="w-4 h-4 mr-1.5 text-amber-500"></i>
+          经典案例预设 (Presets)
+        </h3>
+        <div class="grid grid-cols-1 gap-1.5" id="preset-container">
+          <!-- Populated by JS -->
+        </div>
+        <div id="preset-desc" class="mt-2 min-h-[32px] px-2 py-1 bg-slate-950/20 border-l-2 border-amber-500/50">
+          <p class="text-[11px] text-amber-200/80 italic leading-relaxed">加载预设以直观对比规则变化的影响。</p>
+        </div>
+      </div>
+
+      <!-- Variable Sliders -->
+      <div class="space-y-4 pt-1">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center">
+          <i data-lucide="settings-2" class="w-4 h-4 mr-1.5 text-blue-400"></i>
+          定性刺激与环境参数
+        </h3>
+
+        <!-- S2 Probability -->
+        <div class="bg-slate-950/30 p-3 rounded-lg border border-slate-800/60 hover:border-slate-800 transition-colors">
+          <div class="flex justify-between items-center mb-1">
+            <label for="rule_1_probability_2_walls-slider" class="text-xs font-medium text-slate-300 flex items-center">
+              <span class="w-2.5 h-2.5 rounded-full bg-lime-500 inline-block mr-1.5"></span>
+              S₂ 刺激触发概率 P(S₂)
+            </label>
+            <span id="rule_1_probability_2_walls-display" class="text-xs font-bold font-mono text-lime-400 bg-slate-950 px-1.5 py-0.5 rounded">0.08</span>
+          </div>
+          <p class="text-[10px] text-slate-400 mb-2">当周边存在 2 个墙面时在此处筑巢的概率</p>
+          <input type="range" id="rule_1_probability_2_walls-slider" data-var="rule_1_probability_2_walls" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" min="0.0" max="1.0" step="0.01" value="0.08">
+        </div>
+
+        <!-- S3 Probability -->
+        <div class="bg-slate-950/30 p-3 rounded-lg border border-slate-800/60 hover:border-slate-800 transition-colors">
+          <div class="flex justify-between items-center mb-1">
+            <label for="rule_2_probability_3_walls-slider" class="text-xs font-medium text-slate-300 flex items-center">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mr-1.5"></span>
+              S₃ 刺激触发概率 P(S₃)
+            </label>
+            <span id="rule_2_probability_3_walls-display" class="text-xs font-bold font-mono text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded">0.80</span>
+          </div>
+          <p class="text-[10px] text-slate-400 mb-2">当周边存在 3 个墙面(凹角)时筑巢的概率</p>
+          <input type="range" id="rule_2_probability_3_walls-slider" data-var="rule_2_probability_3_walls" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" min="0.0" max="1.0" step="0.01" value="0.80">
+        </div>
+
+        <!-- Speed -->
+        <div class="bg-slate-950/30 p-3 rounded-lg border border-slate-800/60 hover:border-slate-800 transition-colors">
+          <div class="flex justify-between items-center mb-1">
+            <label id="sim-speed-label" for="agent_movement_randomness-slider" class="text-xs font-medium text-slate-300 flex items-center">
+              <i data-lucide="zap" class="w-3.5 h-3.5 mr-1 text-sky-400"></i>
+              筑巢蜂活跃度 / 仿真帧速率
+            </label>
+            <span id="agent_movement_randomness-display" class="text-xs font-bold font-mono text-sky-400 bg-slate-950 px-1.5 py-0.5 rounded">30x</span>
+          </div>
+          <input type="range" id="agent_movement_randomness-slider" data-var="agent_movement_randomness" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" min="5" max="100" step="5" value="30">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Bottom Controls inside Left Panel -->
+    <div class="p-4 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between space-x-2 sticky bottom-0 backdrop-blur-md">
+      <div id="status-indicator" class="flex items-center">
+        <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+        <span class="text-slate-400 text-xs font-semibold ml-2">未启动</span>
+      </div>
+      <div class="flex space-x-2">
+        <button id="reset-btn" onclick="resetSimulation()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-xs font-semibold flex items-center transition-colors min-h-[44px]">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+        </button>
+        <button id="start-btn" onclick="toggleSimulation()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 rounded-lg text-xs font-bold flex items-center transition-colors shadow-lg shadow-amber-500/15 min-h-[44px]">
+          <i data-lucide="play" class="w-4 h-4 mr-1.5"></i> 启动模拟
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Canvas visualization -->
+  <div class="flex-1 relative bg-slate-950 h-[55vh] md:h-full flex flex-col">
+    <!-- Top info bar in canvas area -->
+    <div class="absolute top-4 left-4 z-10 bg-slate-900/90 border border-slate-800 p-3 rounded-lg backdrop-blur-md shadow-xl text-xs pointer-events-none max-w-[280px]">
+      <div class="font-bold text-slate-200 mb-1 flex items-center">
+        <i data-lucide="layers" class="w-4 h-4 mr-1.5 text-amber-500"></i>
+        二维六角格点生态场
+      </div>
+      <p class="text-slate-400 text-[10px] leading-relaxed mb-2">中心深褐色单元代表 <strong>P</strong>(吊柄基座)。黄色和绿色蜂房代表在不同局部墙面刺激下，筑巢蜂协同构建的巢室。</p>
+      <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] border-t border-slate-800/80 pt-1.5 text-slate-400">
+        <div class="flex items-center"><span class="w-2 h-2 rounded-sm bg-amber-500 mr-1.5"></span> S₃ 优选稳定房</div>
+        <div class="flex items-center"><span class="w-2 h-2 rounded-sm bg-lime-500 mr-1.5"></span> S₂ 易变分岔房</div>
+        <div class="flex items-center"><span class="w-2 h-2 rounded-sm bg-slate-500 mr-1.5"></span> S₁ 稀有脆弱房</div>
+        <div class="flex items-center"><span class="w-2 h-2 rounded-sm bg-red-500 mr-1.5"></span> S₄ 完美重合房</div>
+      </div>
+    </div>
+
+    <!-- Active Swarm Interaction Hint (Floating HUD) -->
+    <div class="absolute bottom-4 left-4 z-10 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-full backdrop-blur-md shadow-lg pointer-events-none text-[11px] text-slate-400 flex items-center">
+      <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 mr-1.5 text-sky-400"></i>
+      提示：您可以<span class="text-sky-400 font-semibold mx-1">在网格虚线空位点击</span>进行手动人工筑巢！
+    </div>
+
+    <!-- Primary Canvas Container -->
+    <div id="canvas-container" class="w-full h-full flex items-center justify-center cursor-crosshair">
+      <canvas id="simulation-canvas" class="w-full h-full block"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // --- Configuration Schema ---
+    const config = {
+      type: "simulation",
+      concept: "qualitative_stigmergy_polistes_comb",
+      description: "模拟纸蜂在二维六角格点上的定性自组织生长。",
+      variables: [
+        { "name": "rule_1_probability_2_walls", "label": "S2 筑巢概率 P(S₂)", "min": 0.0, "max": 1.0, "default": 0.08, "step": 0.01, "unit": "" },
+        { "name": "rule_2_probability_3_walls", "label": "S3 筑巢概率 P(S₃)", "min": 0.0, "max": 1.0, "default": 0.80, "step": 0.01, "unit": "" },
+        { "name": "agent_movement_randomness", "label": "筑巢蜂活跃度/帧速率", "min": 5, "max": 100, "default": 30, "step": 5, "unit": "x" }
+      ],
+      presets: [
+        {
+          "name": "自然概率自组织",
+          "description": "P(S₃) 是 P(S₂) 的10倍。概率差异作为‘表面张力’滤波器自动填补凹角，涌现出完美的圆形蜂巢。",
+          "variables": {
+            "rule_1_probability_2_walls": 0.08,
+            "rule_2_probability_3_walls": 0.80,
+            "agent_movement_randomness": 40
+          }
+        },
+        {
+          "name": "确定性病态发育",
+          "description": "一味执行硬编码规则（如S₂概率极高），导致边缘疯狂分岔，形成松散、易碎的畸形蜂巢结构。",
+          "variables": {
+            "rule_1_probability_2_walls": 0.90,
+            "rule_2_probability_3_walls": 0.95,
+            "agent_movement_randomness": 40
+          }
+        },
+        {
+          "name": "极度稀疏枝状",
+          "description": "高 P(S₂) 但极低 P(S₃)。蜂巢几乎无法向内填充，只形成单薄的线状网络，极易毁坏。",
+          "variables": {
+            "rule_1_probability_2_walls": 0.40,
+            "rule_2_probability_3_walls": 0.05,
+            "agent_movement_randomness": 40
+          }
+        }
+      ]
+    };
+
+    // --- State & Variables ---
+    let grid = new Map(); // key: "q,r" -> { type, buildStep, scale }
+    let wasps = [];
+    let particles = [];
+    let simStep = 0;
+    let isRunning = false;
+    let isPaused = false;
+    let isEnded = false;
+    let hoverHex = null;
+
+    // Simulation global rules (from inputs)
+    let ruleS2 = 0.08;
+    let ruleS3 = 0.80;
+    let simSpeed = 30; // speed ticker divisor
+
+    // Canvas Settings
+    const canvas = document.getElementById('simulation-canvas');
+    const ctx = canvas.getContext('2d');
+    let globalHexSize = 18;
+
+    // Direction definitions for axial hexagonal system
+    const dirs = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+
+    // Wasp Class (Agent Model)
+    class Wasp {
+      constructor(q, r, startX, startY) {
+        this.q = q;
+        this.r = r;
+        this.x = startX;
+        this.y = startY;
+        this.wingAngle = Math.random() * Math.PI * 2;
+        this.state = 'scouting'; // 'scouting' or 'building'
+        this.buildTimer = 0;
+        this.buildTarget = null;
+      }
+
+      updateLogic() {
+        if (this.state === 'building') {
+          this.buildTimer--;
+          if (this.buildTimer <= 0) {
+            if (this.buildTarget) {
+              const { q, r, type } = this.buildTarget;
+              if (!grid.has(`${q},${r}`)) {
+                grid.set(`${q},${r}`, { type: type, buildStep: simStep, scale: 0.1 });
+                createPuff(q, r, type);
+                updateStats();
+
+                if (grid.size >= 140) {
+                  onSimulationEnd();
+                }
+              }
+            }
+            this.state = 'scouting';
+            this.buildTarget = null;
+          }
+        } else {
+          // Scouting random walk
+          const d = dirs[Math.floor(Math.random() * dirs.length)];
+          const nq = this.q + d[0];
+          const nr = this.r + d[1];
+
+          const dist = Math.max(Math.abs(nq), Math.abs(nr), Math.abs(nq + nr));
+          if (dist < 12) {
+            this.q = nq;
+            this.r = nr;
+
+            // Check if grid spot is valid for potential construction
+            if (!grid.has(`${this.q},${this.r}`)) {
+              const walls = countNeighbors(this.q, this.r, grid);
+              if (walls > 0) {
+                let buildProb = 0;
+                let type = 1;
+
+                if (walls === 1) {
+                  buildProb = 0.002; // S1 rarely builds
+                  type = 1;
+                } else if (walls === 2) {
+                  buildProb = ruleS2;
+                  type = 2;
+                } else if (walls === 3) {
+                  buildProb = ruleS3;
+                  type = 3;
+                } else if (walls >= 4) {
+                  buildProb = 0.95; // highly reinforced fill
+                  type = 4;
+                }
+
+                if (Math.random() < buildProb) {
+                  this.state = 'building';
+                  // Build timer scales down with simSpeed for responsive UI flow
+                  this.buildTimer = Math.max(2, Math.floor(18 / (simSpeed / 8 + 1)));
+                  this.buildTarget = { q: this.q, r: this.r, type: type };
+                }
+              }
+            }
+          } else {
+            // Wasp strayed too far, lure them back towards the core
+            this.q = Math.round((Math.random() - 0.5) * 4);
+            this.r = Math.round((Math.random() - 0.5) * 4);
+          }
+        }
+      }
+
+      updateVisual(hexSize, w, h) {
+        const target = hexToScreen(this.q, this.r, hexSize, w, h);
+        this.x += (target.x - this.x) * 0.12;
+        this.y += (target.y - this.y) * 0.12;
+        this.wingAngle += 0.9;
+      }
+    }
+
+    // --- Hex Math Helpers ---
+    function hexToScreen(q, r, size, width, height) {
+      const x = size * Math.sqrt(3) * (q + r / 2) + width / 2;
+      const y = size * 1.5 * r + height / 2;
+      return { x, y };
+    }
+
+    function screenToHex(sx, sy, size, width, height) {
+      const x = sx - width / 2;
+      const y = sy - height / 2;
+      const q = (Math.sqrt(3)/3 * x - 1/3 * y) / size;
+      const r = (2/3 * y) / size;
+      return hexRound(q, r);
+    }
+
+    function hexRound(fracQ, fracR) {
+      let fracS = -fracQ - fracR;
+      let q = Math.round(fracQ);
+      let r = Math.round(fracR);
+      let s = Math.round(fracS);
+
+      const qDiff = Math.abs(q - fracQ);
+      const rDiff = Math.abs(r - fracR);
+      const sDiff = Math.abs(s - fracS);
+
+      if (qDiff > rDiff && qDiff > sDiff) {
+        q = -r - s;
+      } else if (rDiff > sDiff) {
+        r = -q - s;
+      }
+      return { q, r };
+    }
+
+    function countNeighbors(q, r, currentGrid) {
+      let count = 0;
+      for (let d of dirs) {
+        if (currentGrid.has(`${q + d[0]},${r + d[1]}`)) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    // --- Particle Puff Creator ---
+    function createPuff(q, r, type) {
+      const screen = hexToScreen(q, r, globalHexSize, canvas.width, canvas.height);
+      let color = '#f59e0b';
+      if (type === 1) color = '#64748b';
+      if (type === 2) color = '#84cc16';
+      if (type === 3) color = '#f59e0b';
+      if (type === 4) color = '#ef4444';
+
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x: screen.x,
+          y: screen.y,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+          alpha: 1.0,
+          size: Math.random() * 3 + 1.5,
+          color: color,
+          life: 20 + Math.random() * 10
+        });
+      }
+    }
+
+    // --- Core Canvas Drawer Helpers ---
+    function drawHexagon(ctx, x, y, size, fillStyle, strokeStyle, lineWidth = 1) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 6;
+        const hx = x + size * Math.cos(angle);
+        const hy = y + size * Math.sin(angle);
+        if (i === 0) ctx.moveTo(hx, hy);
+        else ctx.lineTo(hx, hy);
+      }
+      ctx.closePath();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    // --- Draw the faint grid system ---
+    function drawFaintGrid(ctx, hexSize) {
+      ctx.strokeStyle = "rgba(51, 65, 85, 0.12)";
+      ctx.lineWidth = 1;
+      const range = 12;
+      for (let q = -range; q <= range; q++) {
+        for (let r = -range; r <= range; r++) {
+          const dist = Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
+          if (dist <= range) {
+            const screen = hexToScreen(q, r, hexSize, canvas.width, canvas.height);
+            drawHexagon(ctx, screen.x, screen.y, hexSize - 1, null, "rgba(51, 65, 85, 0.15)", 1);
+          }
+        }
+      }
+    }
+
+    // --- Draw built nest cells ---
+    function drawBuiltCells(ctx, hexSize) {
+      const sortedCells = Array.from(grid.entries());
+
+      for (let [key, cell] of sortedCells) {
+        const [q, r] = key.split(',').map(Number);
+        const screen = hexToScreen(q, r, hexSize, canvas.width, canvas.height);
+        const size = hexSize * cell.scale;
+
+        // Dynamic scale physics
+        if (cell.scale < 1.0) {
+          cell.scale += 0.12;
+          if (cell.scale > 1.0) cell.scale = 1.0;
+        }
+
+        let outerColor = '#475569';
+        let innerColorLight = '#334155';
+        let innerColorDark = '#1e293b';
+
+        if (key === '0,0') {
+          // Nest attachment base (petiole)
+          outerColor = '#78350f';
+          innerColorLight = '#451a03';
+          innerColorDark = '#1c0d02';
+        } else if (cell.type === 1) {
+          outerColor = '#64748b';
+          innerColorLight = '#475569';
+          innerColorDark = '#334155';
+        } else if (cell.type === 2) {
+          outerColor = '#84cc16';
+          innerColorLight = '#65a30d';
+          innerColorDark = '#3f6212';
+        } else if (cell.type === 3) {
+          outerColor = '#f59e0b';
+          innerColorLight = '#d97706';
+          innerColorDark = '#92400e';
+        } else if (cell.type >= 4) {
+          outerColor = '#ef4444';
+          innerColorLight = '#dc2626';
+          innerColorDark = '#991b1b';
+        }
+
+        // Base hexagon structure
+        drawHexagon(ctx, screen.x, screen.y, size, outerColor, "rgba(0,0,0,0.4)", 1.5);
+
+        // Simulated cylindrical 3D cell well (circular honeycomb core)
+        const circleRadius = size * 0.72;
+        const gradient = ctx.createRadialGradient(
+          screen.x - circleRadius * 0.15, screen.y - circleRadius * 0.15, circleRadius * 0.1,
+          screen.x, screen.y, circleRadius
+        );
+        gradient.addColorStop(0, innerColorLight);
+        gradient.addColorStop(0.5, innerColorDark);
+        gradient.addColorStop(1, '#020617');
+
+        ctx.beginPath();
+        ctx.arc(screen.x, screen.y, circleRadius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.stroke();
+
+        // Delicate paper wasp egg in fully formed cells
+        if (cell.scale > 0.95 && key !== '0,0') {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+          ctx.beginPath();
+          ctx.ellipse(screen.x + size * 0.08, screen.y + size * 0.08, size * 0.22, size * 0.12, Math.PI / 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // --- Draw Wasp Vector Agent ---
+    function drawWasp(ctx, wasp) {
+      ctx.save();
+      ctx.translate(wasp.x, wasp.y);
+
+      // Light hovering oscillation
+      const hoverOffset = Math.sin(wasp.wingAngle * 0.25) * 2;
+      ctx.translate(0, hoverOffset);
+
+      // Body thorax
+      ctx.fillStyle = "#1e293b";
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Yellow-black striped abdomen
+      ctx.save();
+      ctx.rotate(Math.PI / 5);
+      ctx.fillStyle = "#eab308";
+      ctx.beginPath();
+      ctx.ellipse(0, 7, 4.5, 8.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Stripes
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(-3, 4, 6, 2.2);
+      ctx.fillRect(-4, 9, 8, 2.2);
+      ctx.restore();
+
+      // Translucent hovering wings
+      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.lineWidth = 0.8;
+
+      const wingSplay = Math.sin(wasp.wingAngle) * 0.45 + 0.6;
+
+      // Left wing
+      ctx.save();
+      ctx.rotate(-wingSplay);
+      ctx.beginPath();
+      ctx.ellipse(-9, -4, 3, 11, -Math.PI / 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Right wing
+      ctx.save();
+      ctx.rotate(wingSplay);
+      ctx.beginPath();
+      ctx.ellipse(9, -4, 3, 11, Math.PI / 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // --- Update Metrics & Math Analysis ---
+    function updateStats() {
+      const totalCells = grid.size;
+      document.getElementById('stat-cells').innerText = totalCells;
+
+      let connections = 0;
+      let branchCount = 0;
+      let s2Count = 0;
+      let s3Count = 0;
+
+      grid.forEach((value, key) => {
+        if (key !== '0,0') {
+          const [q, r] = key.split(',').map(Number);
+          const n = countNeighbors(q, r, grid);
+          connections += n;
+
+          if (n === 1) branchCount++;
+          if (value.type === 2) s2Count++;
+          if (value.type === 3) s3Count++;
+        }
+      });
+
+      // Total links inside grid (undirected connections)
+      const actualConnections = connections / 2;
+
+      // Compactness Metric (Hex circular clustering)
+      let compactness = 0;
+      if (totalCells > 1) {
+        const maxPossibleConnections = 3 * totalCells - 3 * Math.sqrt(totalCells);
+        compactness = maxPossibleConnections > 0 ? (actualConnections / maxPossibleConnections) : 0;
+        compactness = Math.min(100, Math.max(10, Math.round(compactness * 100)));
+      } else {
+        compactness = 100;
+      }
+
+      // Stability Metric (Ratio of S3/S4 reinforced support)
+      const totalBuilt = totalCells - 1;
+      let stability = 100;
+      if (totalBuilt > 0) {
+        const reinforced = totalBuilt - s2Count; // anything except S2 and S1 is considered highly stable
+        stability = Math.min(100, Math.max(0, Math.round((reinforced / totalBuilt) * 100)));
+      }
+
+      document.getElementById('stat-branches').innerText = branchCount;
+      document.getElementById('stat-compactness').innerText = compactness + "%";
+      document.getElementById('stat-stability').innerText = stability + "%";
+
+      // Colorize compactness & stability warning states
+      const cEl = document.getElementById('stat-compactness');
+      if (compactness < 45) {
+        cEl.className = "text-xl font-bold text-rose-500 font-mono mt-0.5";
+      } else if (compactness < 70) {
+        cEl.className = "text-xl font-bold text-amber-500 font-mono mt-0.5";
+      } else {
+        cEl.className = "text-xl font-bold text-emerald-400 font-mono mt-0.5";
+      }
+
+      const sEl = document.getElementById('stat-stability');
+      if (stability < 40) {
+        sEl.className = "text-xl font-bold text-rose-500 font-mono mt-0.5";
+      } else if (stability < 75) {
+        sEl.className = "text-xl font-bold text-amber-500 font-mono mt-0.5";
+      } else {
+        sEl.className = "text-xl font-bold text-sky-400 font-mono mt-0.5";
+      }
+    }
+
+    // --- Interactive Hover Highlighting ---
+    function drawHoverHex(ctx, hexSize) {
+      if (hoverHex) {
+        const screen = hexToScreen(hoverHex.q, hoverHex.r, hexSize, canvas.width, canvas.height);
+        let color = "rgba(148, 163, 184, 0.35)";
+        if (hoverHex.walls === 2) color = "rgba(132, 204, 22, 0.4)";
+        if (hoverHex.walls === 3) color = "rgba(245, 158, 11, 0.45)";
+        if (hoverHex.walls >= 4) color = "rgba(239, 68, 68, 0.45)";
+
+        drawHexagon(ctx, screen.x, screen.y, hexSize - 1, color, "rgba(255,255,255,0.8)", 1.5);
+
+        // Tooltip identifier
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 9px Fira Code, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`S${hoverHex.walls}`, screen.x, screen.y + 3);
+      }
+    }
+
+    // --- Dynamic Zooming Camera Mechanism ---
+    function adjustHexSize() {
+      let maxR = 1;
+      grid.forEach((value, key) => {
+        const [q, r] = key.split(',').map(Number);
+        const dist = Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
+        if (dist > maxR) maxR = dist;
+      });
+
+      const minDim = Math.min(canvas.width, canvas.height);
+      const targetSize = (minDim * 0.4) / (maxR + 1.2);
+      const clampedTarget = Math.max(10, Math.min(26, targetSize));
+      globalHexSize += (clampedTarget - globalHexSize) * 0.12;
+    }
+
+    // --- Main Simulation Handlers ---
+    function initSimulation() {
+      grid.clear();
+      particles = [];
+      simStep = 0;
+
+      // Base Petiole build at origin (0,0)
+      grid.set("0,0", { type: 0, buildStep: 0, scale: 1.0 });
+
+      // Create 5 active wasps near core
+      wasps = [];
+      for (let i = 0; i < 5; i++) {
+        wasps.push(new Wasp(
+          Math.floor(Math.random() * 5) - 2,
+          Math.floor(Math.random() * 5) - 2,
+          canvas.width / 2 + (Math.random() - 0.5) * 100,
+          canvas.height / 2 + (Math.random() - 0.5) * 100
+        ));
+      }
+
+      isEnded = false;
+      updateStats();
+    }
+
+    function toggleSimulation() {
+      if (isEnded) {
+        resetSimulation();
+        startSim();
+      } else if (isRunning && !isPaused) {
+        pauseSim();
+      } else {
+        startSim();
+      }
+    }
+
+    function startSim() {
+      isRunning = true;
+      isPaused = false;
+      isEnded = false;
+      document.getElementById('start-btn').innerHTML = '<i data-lucide="pause" class="w-4 h-4 mr-1.5"></i> 暂停模拟';
+      document.getElementById('start-btn').className = "bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center transition-colors shadow-lg shadow-rose-500/15 min-h-[44px]";
+      document.getElementById('status-indicator').innerHTML = '<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><span class="text-emerald-400 text-xs font-semibold ml-2">正在自组织筑巢...</span>';
+      lucide.createIcons();
+    }
+
+    function pauseSim() {
+      isPaused = true;
+      document.getElementById('start-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 mr-1.5"></i> 继续模拟';
+      document.getElementById('start-btn').className = "bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 rounded-lg text-xs font-bold flex items-center transition-colors shadow-lg shadow-amber-500/15 min-h-[44px]";
+      document.getElementById('status-indicator').innerHTML = '<span class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span><span class="text-amber-400 text-xs font-semibold ml-2">模拟已暂停</span>';
+      lucide.createIcons();
+    }
+
+    function onSimulationEnd() {
+      isRunning = false;
+      isPaused = false;
+      isEnded = true;
+      document.getElementById('start-btn').innerHTML = '<i data-lucide="rotate-ccw" class="w-4 h-4 mr-1.5"></i> 重新开始';
+      document.getElementById('start-btn').className = "bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center transition-colors shadow-lg shadow-sky-600/15 min-h-[44px]";
+      document.getElementById('status-indicator').innerHTML = '<span class="h-2 w-2 rounded-full bg-sky-500"></span><span class="text-sky-400 text-xs font-semibold ml-2">筑巢已完成 (达规模上限)</span>';
+      lucide.createIcons();
+    }
+
+    function resetSimulation() {
+      isRunning = false;
+      isPaused = false;
+      isEnded = false;
+      initSimulation();
+      document.getElementById('start-btn').innerHTML = '<i data-lucide="play" class="w-4 h-4 mr-1.5"></i> 启动模拟';
+      document.getElementById('start-btn').className = "bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 rounded-lg text-xs font-bold flex items-center transition-colors shadow-lg shadow-amber-500/15 min-h-[44px]";
+      document.getElementById('status-indicator').innerHTML = '<span class="h-2 w-2 rounded-full bg-slate-500"></span><span class="text-slate-400 text-xs font-semibold ml-2">就绪</span>';
+      lucide.createIcons();
+    }
+
+    // --- Dynamic Resizing Canvas Logic ---
+    function setupCanvas() {
+      const container = document.getElementById('canvas-container');
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = container.clientWidth * dpr;
+      canvas.height = container.clientHeight * dpr;
+      canvas.style.width = container.clientWidth + 'px';
+      canvas.style.height = container.clientHeight + 'px';
+      ctx.scale(dpr, dpr);
+    }
+
+    // --- Interactive Mouse Handlers (Screen-To-Hex click and hover) ---
+    function setupInteractions() {
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const scaleX = canvas.width / rect.width / dpr;
+        const scaleY = canvas.height / rect.height / dpr;
+        const sx = (e.clientX - rect.left) * scaleX;
+        const sy = (e.clientY - rect.top) * scaleY;
+
+        const hex = screenToHex(sx, sy, globalHexSize, canvas.width / dpr, canvas.height / dpr);
+
+        if (!grid.has(`${hex.q},${hex.r}`)) {
+          const walls = countNeighbors(hex.q, hex.r, grid);
+          if (walls > 0) {
+            hoverHex = { q: hex.q, r: hex.r, walls: walls };
+          } else {
+            hoverHex = null;
+          }
+        } else {
+          hoverHex = null;
+        }
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        hoverHex = null;
+      });
+
+      canvas.addEventListener('click', (e) => {
+        if (hoverHex) {
+          const { q, r, walls } = hoverHex;
+          const type = Math.min(4, Math.max(1, walls));
+          grid.set(`${q},${r}`, { type: type, buildStep: simStep, scale: 0.1 });
+          createPuff(q, r, type);
+          hoverHex = null;
+          updateStats();
+
+          // Flash ambient feedback on manual build
+          const flash = document.createElement('div');
+          flash.style.cssText = 'position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none; background:rgba(245,158,11,0.06); transition:opacity 0.25s;';
+          canvas.parentElement.appendChild(flash);
+          setTimeout(() => flash.remove(), 250);
+        }
+      });
+    }
+
+    // --- Game Loop Implementation ---
+    function mainLoop() {
+      // 1. Logic updates (Throttled calculations based on simSpeed)
+      if (isRunning && !isPaused && !isEnded) {
+        // Map slider speed logic to multi-step ticks
+        const ticks = Math.floor(simSpeed / 5) + 1;
+        for (let t = 0; t < ticks; t++) {
+          simStep++;
+          wasps.forEach(w => w.updateLogic());
+        }
+      }
+
+      // 2. Camera adjustment
+      adjustHexSize();
+
+      // 3. Clear and draw frame at full 60FPS
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Radial background field ambience
+      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h));
+      bgGrad.addColorStop(0, '#090d16');
+      bgGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Draw ecological lattice grid lines
+      drawFaintGrid(ctx, globalHexSize);
+
+      // Draw constructed nest cell geometries
+      drawBuiltCells(ctx, globalHexSize);
+
+      // Draw active hover highlight overlays
+      drawHoverHex(ctx, globalHexSize);
+
+      // Draw dynamic visual particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.04;
+        p.life--;
+
+        if (p.life <= 0 || p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw wasp agents smoothly
+      wasps.forEach(w => {
+        w.updateVisual(globalHexSize, w, h);
+        drawWasp(ctx, w);
+      });
+
+      requestAnimationFrame(mainLoop);
+    }
+
+    // --- Load Preset Option ---
+    function loadPreset(index) {
+      const preset = config.presets[index];
+      if (!preset) return;
+
+      Object.entries(preset.variables).forEach(([key, val]) => {
+        const slider = document.getElementById(`${key}-slider`);
+        if (slider) {
+          slider.value = val;
+          slider.dispatchEvent(new Event('input'));
+        }
+      });
+
+      document.querySelectorAll('.preset-btn').forEach((btn, idx) => {
+        if (idx === index) {
+          btn.className = "preset-btn text-left p-2 rounded-lg border text-xs font-semibold transition-all duration-200 border-amber-500 bg-amber-500/10 text-amber-300 shadow-md shadow-amber-500/5";
+        } else {
+          btn.className = "preset-btn text-left p-2 rounded-lg border text-xs font-semibold transition-all duration-200 border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700 hover:text-slate-300";
+        }
+      });
+
+      document.getElementById('preset-desc').innerHTML = `<p class="text-[11px] text-amber-200/85 italic leading-relaxed">"${preset.description}"</p>`;
+
+      resetSimulation();
+      startSim();
+    }
+
+    // --- Setup UI elements ---
+    function setupUI() {
+      // Build Preset Buttons dynamically
+      const container = document.getElementById('preset-container');
+      container.innerHTML = '';
+      config.presets.forEach((preset, i) => {
+        const btn = document.createElement('button');
+        btn.className = "preset-btn text-left p-2 rounded-lg border text-xs font-semibold transition-all duration-200 border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700 hover:text-slate-300";
+        btn.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span>${preset.name}</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </div>
+        `;
+        btn.onclick = () => loadPreset(i);
+        container.appendChild(btn);
+      });
+
+      // Synchronize Sliders to local state
+      document.getElementById('rule_1_probability_2_walls-slider').addEventListener('input', (e) => {
+        ruleS2 = parseFloat(e.target.value);
+        document.getElementById('rule_1_probability_2_walls-display').innerText = ruleS2.toFixed(2);
+      });
+
+      document.getElementById('rule_2_probability_3_walls-slider').addEventListener('input', (e) => {
+        ruleS3 = parseFloat(e.target.value);
+        document.getElementById('rule_2_probability_3_walls-display').innerText = ruleS3.toFixed(2);
+      });
+
+      document.getElementById('agent_movement_randomness-slider').addEventListener('input', (e) => {
+        simSpeed = parseInt(e.target.value);
+        document.getElementById('agent_movement_randomness-display').innerText = simSpeed + 'x';
+      });
+
+      // Dynamic resize hook
+      const resizeObserver = new ResizeObserver(() => {
+        setupCanvas();
+      });
+      resizeObserver.observe(document.getElementById('canvas-container'));
+
+      // Key binding listeners
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          toggleSimulation();
+        } else if (e.code === 'KeyR' || e.code === 'Keyr') {
+          resetSimulation();
+        }
+      });
+    }
+
+    // --- Bootstrapper initialization ---
+    window.onload = () => {
+      lucide.createIcons();
+      setupUI();
+      setupCanvas();
+      setupInteractions();
+      initSimulation();
+      
+      // Auto-load first natural preset
+      loadPreset(0);
+      
+      requestAnimationFrame(mainLoop);
+    };
+
+    // --- CRITICAL Teacher Frame postMessage Listeners ---
+    window.addEventListener('message', function(event) {
+      const { type, target, state, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (state) {
+            Object.entries(state).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(245, 158, 11, 0.85)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(245,158,11,0.98); color:black; font-weight:bold; padding:8px 12px; border-radius:8px; font-size:13px; z-index:1000; animation:fadeIn 0.3s; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Custom CSS injection for simulation highlights
+    const style = document.createElement('style');
+    style.textContent = '@keyframes pulse-highlight { 0%, 100% { outline-color: rgba(245, 158, 11, 0.85); } 50% { outline-color: rgba(245, 158, 11, 0.35); } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }';
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

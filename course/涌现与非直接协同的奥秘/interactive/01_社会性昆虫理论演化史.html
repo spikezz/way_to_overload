@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社会性昆虫理论演化史 | 交互概念图谱</title>
+    <!-- Tailwind CSS for modern responsive utility styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+SC:wght@300;400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans SC', 'JetBrains Mono', sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+
+        /* Sleek scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* SVG Glow Effect */
+        .glow-active {
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+        }
+        
+        .pulse-active {
+            animation: pulse-border 2s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            0% {
+                border-color: rgba(6, 182, 212, 0.4);
+                box-shadow: 0 0 4px rgba(6, 182, 212, 0.2);
+            }
+            100% {
+                border-color: rgba(6, 182, 212, 1);
+                box-shadow: 0 0 16px rgba(6, 182, 212, 0.6);
+            }
+        }
+    </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="overflow-hidden min-h-screen">
+
+    <!-- Embed dynamic config for the diagram framework -->
+    <script type="application/json" id="widget-config">
+    {
+      "nodes": [
+        {
+          "id": "n_start",
+          "label": "涌现之谜 (Emergence)",
+          "icon": "🐜",
+          "x": 500,
+          "y": 70,
+          "details": {
+            "title": "涌现之谜：微脑构建的奇迹",
+            "subtitle": "Collective Intelligence & Emergence",
+            "analogy": "超低端计算芯片（无共享内存、微弱算力）在无中心调度、无全局路由的条件下，自发协同构建出具备精细温控与防御系统的宏观工程。",
+            "terms": "Emergence (涌现) / Decentralized Control (去中心化控制)",
+            "desc": "单个昆虫（如蚂蚁、白蚁）仅具有微量神经元，感知极其局部。然而，群体聚集时却能自发展现出寻找最短路径、动态劳动分工及构建宏伟巢穴的宏观现象。这正是复杂系统理论的核心追求所在：<b>底层极简规则，如何涌现出高阶自组织智能？</b>",
+            "quiz": {
+              "question": "在去中心化工程中，要让大量微型代理(Agent)自发协作，核心矛盾是什么？",
+              "options": [
+                { "key": "A", "text": "必须由主控单元计算后，通过网络实时下发所有控制指令", "correct": false },
+                { "key": "B", "text": "如何在缺少全局信息和中心调度的前提下，避免发生系统死锁或行为冲突", "correct": true },
+                { "key": "C", "text": "让每一个个体强制搭载完整的全局环境地图和预测模型", "correct": false }
+              ],
+              "feedback": "完全正确！去中心化系统的精髓在于“无需全局地图与主控中心”，依赖局部的简单交互协议达成系统级的动态博弈与演化平衡。"
+            }
+          }
+        },
+        {
+          "id": "n_super",
+          "label": "超个体论 (Superorganism)",
+          "icon": "🧠",
+          "x": 250,
+          "y": 210,
+          "details": {
+            "title": "超个体论：系统层面的自稳态",
+            "subtitle": "Superorganism Theory (Wheeler & Emerson)",
+            "analogy": "整体类似于一台中央空调闭环控制系统。你不需要分析内部管道的每个冷媒分子如何运动，只需关注系统的宏观温度反馈环。",
+            "terms": "Superorganism (超个体) / Homeostasis (自稳态)",
+            "desc": "由威勒（Wheeler）等人提出。该理论主张，应当将整个昆虫社群视为一个单一的<b>“超个体”</b>。每个工蚁就如同多细胞生物里的一个“体细胞”，负责呼吸、御敌或繁衍。整个巢穴展现出强烈的系统自稳态（Homeostasis）。然而，它偏向自上而下的整体论描述，<b>致命缺点是：未能给出个体微观运作的物理机制。</b>",
+            "quiz": {
+              "question": "超个体论所强调的『自稳态 (Homeostasis)』最接近工程上的什么设计？",
+              "options": [
+                { "key": "A", "text": "无反馈的开环顺序控制", "correct": false },
+                { "key": "B", "text": "带误差补偿与负反馈调节的闭环控制系统 (如 PID)", "correct": true },
+                { "key": "C", "text": "抢占式多任务单核调度", "correct": false }
+              ],
+              "feedback": "正确！超个体论将系统视为宏观整体，系统的稳态通过无休止的局部负反馈修正来维系，正如 PID 调节器根据宏观温差改变控制输出。"
+            }
+          }
+        },
+        {
+          "id": "n_indiv",
+          "label": "独立个体论 (Individualist)",
+          "icon": "🤖",
+          "x": 750,
+          "y": 210,
+          "details": {
+            "title": "独立个体假说：孤立反射的叠加",
+            "subtitle": "Individualist Hypothesis (Rabaud)",
+            "analogy": "这就像在同一个房间放了一千个物理隔离的温控开关。虽然它们看起来“协同”让温度稳定在25度，但其实它们彼此毫无了解，只是在独立对局部刺激作出反应。",
+            "terms": "Reductionism (还原论) / Reflex Overlay (反射叠加)",
+            "desc": "由拉波（Rabaud）等学者针锋相对提出。他强烈反对超个体这种带有哲学神秘色彩的宏观概念，主张<b>极端的还原论</b>。他认为“集体劳动”纯属学术幻觉：每个昆虫只是单纯的、孤立的传感器，接收到刺激就做出固定物理反射。群体的有序只是海量独立动作在空间上的简单叠加，个体间没有真正的协同机制。",
+            "quiz": {
+              "question": "独立个体假说(Individualist)最难以解释下列哪种复杂现象？",
+              "options": [
+                { "key": "A", "text": "工蚁在接收到光照刺激时，迅速爬向暗处避险", "correct": false },
+                { "key": "B", "text": "成千上万只白蚁在没有任何沟通下，构建出宏大且具备精密对称风道的蚁丘", "correct": true },
+                { "key": "C", "text": "温度过高时，部分工蚁自发移动到巢穴外散热", "correct": false }
+              ],
+              "feedback": "答对啦！如果完全没有“协同和中介传递”，单纯随机的反射无法在空间长程跨度上构造高度对称、协同一致的、需要阶段性分工的宏观工程结构。"
+            }
+          }
+        },
+        {
+          "id": "n_conflict",
+          "label": "理论冲突：整体 vs. 还原",
+          "icon": "⚖️",
+          "x": 500,
+          "y": 340,
+          "details": {
+            "title": "整体论与还原论的长期对峙",
+            "subtitle": "The Great Debate: Holism vs. Reductionism",
+            "analogy": "在经典物理学和系统控制论中，这相当于“热力学宏观状态量（温度、压强）”与“统计物理微观粒子运动”的严重脱节，缺乏连接两个层面的桥梁方程。",
+            "terms": "Paradigm Shift (范式转换) / Bridging Mechanism (桥梁机制)",
+            "desc": "两派学者开展了长达数十年的争论。超个体论虽然揭示了惊艳的宏观涌现，却解释不清底层工蚁是如何相互通知、传递控制指令的；而独立个体假说虽然将个体行为简化成了可数字模拟的反射逻辑，却无法解释那些高度复杂的系统演化。矛盾的根源在于：<b>学术界缺乏一种介质，能够证明微观个体在互不通信的情况下，如何自发地实现长程宏观协同。</b>",
+            "quiz": {
+              "question": "两派争论的物理学本质是什么？",
+              "options": [
+                { "key": "A", "text": "微观离散动力学状态与宏观连续动力学场之间，缺乏信息交互的耦合机制", "correct": true },
+                { "key": "B", "text": "数学计算能力有限，无法模拟上万个独立神经元", "correct": false },
+                { "key": "C", "text": "昆虫的遗传基因中是否写死了所有的社交命令", "correct": false }
+              ],
+              "feedback": "正确！微观与宏观割裂的本质在于缺乏物理耦合（Coupling）。解决这个问题的关键正是“环境介质”。"
+            }
+          }
+        },
+        {
+          "id": "n_stigmergy",
+          "label": "非直接协同 (Stigmergy)",
+          "icon": "🔄",
+          "x": 500,
+          "y": 480,
+          "details": {
+            "title": "非直接协同论：环境作为共享黑板",
+            "subtitle": "Stigmergy / Indirect Coordination (Grassé)",
+            "analogy": "这就是软件架构中的<b>『共享黑板模式 (Blackboard System)』</b>或 IoT 中介存储。工蚁A将黏土揉成小球扔在地上（带有湿度和信息素），这块土球改变了物理环境状态。工蚁B走过时，接收到这块土球（环境媒介）的刺激，激活其在上面继续垒土的反射。**Agent 之间完全解耦，利用共享媒介隐式传递状态。**",
+            "terms": "Stigmergy (非直接协同) / Tuple Space (元组空间)",
+            "desc": "法国科学家格拉塞（Grassé）于1959年提出这一跨时代概念。他发现：昆虫协作不需要直接对话，甚至不需要意识到彼此的存在。<b>个体的操作改变了局部环境，而被环境所记录的物理状态，又转化为下一个个体行为的触发器。</b>这一理论成功架起了连接“微观个体反射”和“宏观超个体自稳”的完美桥梁，成为分布式智能计算（如蚁群算法 ACO）的奠基石。",
+            "quiz": {
+              "question": "在现代计算架构中，下列哪项设计最契合 Stigmergy (非直接协同) 的物理逻辑？",
+              "options": [
+                { "key": "A", "text": "多进程间通过高频 RPC (远程过程调用) 进行强同步握手通信", "correct": false },
+                { "key": "B", "text": "分布式发布-订阅模型，所有 Agent 异步读取并修改公共的主题数据库 (Redis/MQTT)", "correct": true },
+                { "key": "C", "text": "依靠集中式单一主服务器向各从服务器下发顺序线程任务", "correct": false }
+              ],
+              "feedback": "太棒了！异步 pub/sub 模型中，Agent 只与共享的主题/环境交互，相互之间完全解耦（Decoupled），这正是 Stigmergy 的完美工程复刻！"
+            }
+          }
+        },
+        {
+          "id": "n_synthesis",
+          "label": "现代自组织与反馈",
+          "icon": "⚡",
+          "x": 500,
+          "y": 620,
+          "details": {
+            "title": "现代复杂自组织：分岔、反馈与相变",
+            "subtitle": "Modern Self-Organization Theory",
+            "analogy": "这相当于由正反馈机制构建的非线性放大电路。当外界噪声（扰动）使某条通道上的电流稍大时，正反馈电路（信息素积累）将其无限放大，导致系统整体状态发生瞬间『相变』，锁死在最优通路。",
+            "terms": "Bifurcation (分岔) / Positive Feedback (正反馈) / Phase Transition (相变)",
+            "desc": "现代科学将非线性动力学引入该领域。群体行为的核心引擎是<b>“正反馈”</b>（滚雪球效应，如蚂蚁通过高浓度信息素吸引更多蚂蚁）与<b>“负反馈”</b>（如信息素挥发、通道拥堵）的交互纠缠。当系统到达某个临界阈值时，非线性方程会发生<b>分岔 (Bifurcation)</b>，使系统自发打破对称性，发生类似于晶体结晶的<b>相变 (Phase Transition)</b>，瞬间迈向全新宏观高度秩序。",
+            "quiz": {
+              "question": "在自组织系统中，负责产生新秩序、推动突发状态转移的物理引擎是：",
+              "options": [
+                { "key": "A", "text": "纯粹的负反馈，它能抹除系统内部所有的细微噪音", "correct": false },
+                { "key": "B", "text": "正反馈作为局部放大器，在跨越分岔点时打破原有平衡，引发宏观相变", "correct": true },
+                { "key": "C", "text": "环境温度的绝对恒定和系统的封闭无扰动", "correct": false }
+              ],
+              "feedback": "正确！没有正反馈（Positive Feedback），系统就无法放大随机涨落；没有分岔与相变，系统就只能永远维持在枯燥的均衡初态。它是复杂度的源泉！"
+            }
+          }
+        }
+      ],
+      "edges": [
+        { "from": "n_start", "to": "n_super", "label": "宏观突显 ➜" },
+        { "from": "n_start", "to": "n_indiv", "label": "➜ 微观解构" },
+        { "from": "n_super", "to": "n_conflict", "label": "系统论盲区" },
+        { "from": "n_indiv", "to": "n_conflict", "label": "还原论困境" },
+        { "from": "n_conflict", "to": "n_stigmergy", "label": "引入中介介质 ➜" },
+        { "from": "n_stigmergy", "to": "n_synthesis", "label": "演化为现代自组织 ➜" }
+      ],
+      "revealOrder": ["n_start", "n_super", "n_indiv", "n_conflict", "n_stigmergy", "n_synthesis"]
+    }
+    </script>
+
+    <!-- Main Container Layout -->
+    <div class="flex flex-col lg:flex-row h-screen w-screen overflow-hidden">
+        
+        <!-- Left Side: Interactive Map Grid (Sleek Tech Sandbox) -->
+        <div class="flex-1 flex flex-col relative bg-[#0b0f19] h-[55vh] lg:h-full border-b lg:border-b-0 lg:border-r border-slate-800">
+            <!-- Canvas Header -->
+            <div class="absolute top-4 left-4 z-10">
+                <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800 text-xs text-slate-400">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
+                    <span>演化史系统拓扑图 (Interactive Map)</span>
+                </div>
+            </div>
+
+            <!-- SVG Workspace -->
+            <div class="w-full h-full relative overflow-hidden flex items-center justify-center">
+                <svg id="svg-canvas" class="w-full h-full" viewBox="0 0 1000 720" preserveAspectRatio="xMidYMid meet">
+                    <!-- Tech Grid Background -->
+                    <defs>
+                        <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(51, 65, 85, 0.15)" stroke-width="1"/>
+                        </pattern>
+                        <!-- Arrow Marker -->
+                        <marker id="arrowhead" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8" />
+                        </marker>
+                        <!-- Glow Filters -->
+                        <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="5" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+                    
+                    <!-- Edges Group (drawn behind nodes) -->
+                    <g id="edges-group"></g>
+                    <!-- Nodes Group -->
+                    <g id="nodes-group"></g>
+                </svg>
+            </div>
+
+            <!-- Bottom Floating Map Hint -->
+            <div class="absolute bottom-4 left-4 right-4 z-10 hidden sm:flex justify-between items-center bg-slate-900/90 backdrop-blur-md px-4 py-3 rounded-xl border border-slate-800 text-xs">
+                <span class="text-slate-400">💡 提示：点击图中的<b>高亮节点</b>可自由切换详情；使用右侧面板可步进。</span>
+                <span class="text-cyan-400 font-semibold uppercase tracking-wider text-[10px] bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800">Engineering Approach</span>
+            </div>
+        </div>
+
+        <!-- Right Side: Beautiful Dynamic Information Sidebar -->
+        <div class="w-full lg:w-[480px] flex flex-col h-[45vh] lg:h-full bg-[#0f172a] shadow-2xl relative">
+            <!-- Sidebar Header -->
+            <div class="p-5 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md">
+                <div class="text-[10px] font-bold tracking-widest text-cyan-500 uppercase mb-1">Interactive Case Study</div>
+                <h1 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                    社会性昆虫理论演化史
+                </h1>
+                <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                    探索自上而下「超个体论」与自下而上「还原论」在非直接协同中的世纪性物理融合。
+                </p>
+                <!-- Flow Stepper Progress Line -->
+                <div class="mt-4 flex items-center gap-1.5" id="progress-dots">
+                    <!-- Dots generated by JS -->
+                </div>
+            </div>
+
+            <!-- Dynamic Content (Scrollable Container) -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-5" id="detail-scroller">
+                <!-- Node Header -->
+                <div>
+                    <div class="flex items-center gap-3">
+                        <span id="slide-icon" class="text-3xl p-2 rounded-xl bg-slate-800 border border-slate-700 shadow-md">🐜</span>
+                        <div>
+                            <span id="slide-bilingual" class="text-[10px] font-semibold text-cyan-400 tracking-wider block uppercase">Emergence & Complex Systems</span>
+                            <h2 id="slide-title" class="text-lg font-bold text-slate-100 mt-0.5">加载中...</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Core Description (Abstract Concept) -->
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800/80 space-y-2">
+                    <span class="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">概念剖析 (Theoretical Core)</span>
+                    <p id="slide-desc" class="text-sm text-slate-300 leading-relaxed font-light">
+                        加载描述中...
+                    </p>
+                </div>
+
+                <!-- Engineering & Physics Analogy (Highly optimized for engineers) -->
+                <div class="bg-gradient-to-br from-cyan-950/40 to-slate-900 p-4 rounded-xl border border-cyan-900/30 space-y-2">
+                    <div class="flex items-center gap-1.5 text-cyan-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        <span class="text-xs font-bold uppercase tracking-wider">工程/物理类比 (Engineering Analogy)</span>
+                    </div>
+                    <p id="slide-analogy" class="text-xs text-slate-300 leading-relaxed font-mono">
+                        加载类比中...
+                    </p>
+                </div>
+
+                <!-- Terminology Mapping Panel -->
+                <div class="bg-slate-900/30 p-4 rounded-xl border border-slate-800/60 space-y-1.5">
+                    <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">双语核心术语 (Glossary)</span>
+                    <div id="slide-terms" class="text-xs text-slate-200 font-mono font-medium">
+                        Loading...
+                    </div>
+                </div>
+
+                <!-- Live Interaction Checkpoint (Interactive Quiz) -->
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-3" id="quiz-container">
+                    <div class="flex items-center gap-1.5 text-amber-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span class="text-xs font-bold uppercase tracking-wider">互动检测 (Interactive Checkpoint)</span>
+                    </div>
+                    <p id="quiz-question" class="text-xs text-slate-300 font-semibold leading-relaxed">
+                        加载问题中...
+                    </p>
+                    <div id="quiz-options" class="space-y-2">
+                        <!-- Options generated by JS -->
+                    </div>
+                    <!-- Feedback Container -->
+                    <div id="quiz-feedback" class="hidden p-3 rounded-lg text-xs leading-relaxed transition-all duration-300">
+                        <!-- Explanation text -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Controller Navigation Panel -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between gap-4">
+                <button id="btn-prev" class="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 font-medium text-xs transition duration-200 flex items-center justify-center gap-2">
+                    <span>←</span> 上一步 (Prev)
+                </button>
+                <button id="btn-next" class="flex-1 py-2.5 px-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-semibold text-xs shadow-lg shadow-cyan-900/20 transition duration-200 flex items-center justify-center gap-2">
+                    下一步 (Next) <span>→</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Interactive Logic Script -->
+    <script>
+        // Nodes and layout dimensions
+        const NODE_WIDTH = 180;
+        const NODE_HEIGHT = 70;
+        const ARROW_OFFSET = 10;
+
+        // Parse JSON Embedded Config
+        const config = JSON.parse(document.getElementById('widget-config').textContent);
+        
+        // Active states
+        let revealedIndex = 0; // Starts with first node visible
+        let selectedNodeId = config.revealOrder[0];
+        let quizAnswers = {}; // Keep track of answered questions: {nodeId: optionKey}
+
+        // DOM elements
+        const svgCanvas = document.getElementById('svg-canvas');
+        const edgesGroup = document.getElementById('edges-group');
+        const nodesGroup = document.getElementById('nodes-group');
+        const progressDots = document.getElementById('progress-dots');
+        const slideIcon = document.getElementById('slide-icon');
+        const slideTitle = document.getElementById('slide-title');
+        const slideBilingual = document.getElementById('slide-bilingual');
+        const slideDesc = document.getElementById('slide-desc');
+        const slideAnalogy = document.getElementById('slide-analogy');
+        const slideTerms = document.getElementById('slide-terms');
+        const quizQuestion = document.getElementById('quiz-question');
+        const quizOptions = document.getElementById('quiz-options');
+        const quizFeedback = document.getElementById('quiz-feedback');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const detailScroller = document.getElementById('detail-scroller');
+
+        // Edge Point Calculation Formula (from requirements prompt)
+        function getEdgePoints(from, to) {
+            const dx = to.x - from.x, dy = to.y - from.y;
+            let sx, sy, ex, ey;
+
+            if (Math.abs(dy) > Math.abs(dx)) { // Vertical orientation
+                sx = from.x;
+                sy = dy > 0 ? from.y + NODE_HEIGHT/2 : from.y - NODE_HEIGHT/2;
+                ex = to.x;
+                ey = dy > 0 ? to.y - NODE_HEIGHT/2 - ARROW_OFFSET : to.y + NODE_HEIGHT/2 + ARROW_OFFSET;
+            } else { // Horizontal orientation
+                sx = dx > 0 ? from.x + NODE_WIDTH/2 : from.x - NODE_WIDTH/2;
+                sy = from.y;
+                ex = dx > 0 ? to.x - NODE_WIDTH/2 - ARROW_OFFSET : to.x + NODE_WIDTH/2 + ARROW_OFFSET;
+                ey = to.y;
+            }
+            return `M ${sx} ${sy} L ${ex} ${ey}`;
+        }
+
+        // Initialize progress tracker dots in the right sidebar
+        function initProgressTracker() {
+            progressDots.innerHTML = '';
+            config.revealOrder.forEach((nodeId, idx) => {
+                const node = config.nodes.find(n => n.id === nodeId);
+                const dot = document.createElement('div');
+                dot.className = `h-1 rounded-full transition-all duration-300 flex-1 cursor-pointer ${
+                    idx <= revealedIndex ? 'bg-cyan-500' : 'bg-slate-800'
+                }`;
+                dot.title = node.label;
+                dot.addEventListener('click', () => {
+                    if (idx <= revealedIndex) {
+                        selectNode(nodeId);
+                    }
+                });
+                progressDots.appendChild(dot);
+            });
+        }
+
+        // Render nodes and connection paths dynamically onto SVG
+        function renderDiagram() {
+            // Clear current canvas states
+            nodesGroup.innerHTML = '';
+            edgesGroup.innerHTML = '';
+
+            // Draw Paths (Edges) first so they sit comfortably behind nodes
+            config.edges.forEach(edge => {
+                const fromNode = config.nodes.find(n => n.id === edge.from);
+                const toNode = config.nodes.find(n => n.id === edge.to);
+                
+                if (!fromNode || !toNode) return;
+
+                const pathData = getEdgePoints(fromNode, toNode);
+                const fromIdx = config.revealOrder.indexOf(edge.from);
+                const toIdx = config.revealOrder.indexOf(edge.to);
+                const isRevealed = fromIdx <= revealedIndex && toIdx <= revealedIndex;
+
+                // Path Line group
+                const pathG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                pathG.setAttribute("class", "transition-all duration-500");
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", pathData);
+                path.setAttribute("fill", "none");
+                path.setAttribute("marker-end", isRevealed ? "url(#arrowhead)" : "");
+                
+                if (isRevealed) {
+                    path.setAttribute("stroke", "#0284c7");
+                    path.setAttribute("stroke-width", "2.5");
+                    path.setAttribute("stroke-dasharray", "");
+                    pathG.setAttribute("class", "glow-active");
+                } else {
+                    path.setAttribute("stroke", "rgba(51, 65, 85, 0.4)");
+                    path.setAttribute("stroke-width", "1.5");
+                    path.setAttribute("stroke-dasharray", "4,4");
+                }
+
+                pathG.appendChild(path);
+
+                // Add dynamic label backdrop overlay mid-point of edge
+                if (isRevealed && edge.label) {
+                    const midX = (fromNode.x + toNode.x) / 2;
+                    const midY = (fromNode.y + toNode.y) / 2;
+                    
+                    const foreignObj = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+                    foreignObj.setAttribute("x", midX - 60);
+                    foreignObj.setAttribute("y", midY - 14);
+                    foreignObj.setAttribute("width", "120");
+                    foreignObj.setAttribute("height", "28");
+                    foreignObj.setAttribute("pointer-events", "none");
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = "flex items-center justify-center text-[10px] bg-slate-900/90 border border-slate-700/80 text-cyan-200 rounded-md py-0.5 px-2 font-mono shadow-md text-center backdrop-blur-sm whitespace-nowrap overflow-hidden text-ellipsis";
+                    labelDiv.innerText = edge.label;
+                    
+                    foreignObj.appendChild(labelDiv);
+                    pathG.appendChild(foreignObj);
+                }
+
+                edgesGroup.appendChild(pathG);
+            });
+
+            // Draw Interactive Nodes
+            config.nodes.forEach(node => {
+                const revealIdx = config.revealOrder.indexOf(node.id);
+                const isRevealed = revealIdx <= revealedIndex;
+                const isSelected = node.id === selectedNodeId;
+
+                const nodeG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                nodeG.setAttribute("transform", `translate(${node.x - NODE_WIDTH/2}, ${node.y - NODE_HEIGHT/2})`);
+                
+                // foreignObject element injection to facilitate flexible CSS & tailwind formatting inside node
+                const foreignObj = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+                foreignObj.setAttribute("width", NODE_WIDTH);
+                foreignObj.setAttribute("height", NODE_HEIGHT);
+                foreignObj.setAttribute("class", "overflow-visible");
+
+                // HTML container node block
+                const container = document.createElement('div');
+                
+                if (isRevealed) {
+                    container.className = `w-full h-full rounded-xl border flex items-center gap-3 px-3.5 py-2.5 transition-all duration-300 cursor-pointer select-none relative ${
+                        isSelected 
+                        ? 'bg-slate-800 text-white border-cyan-500 shadow-xl shadow-cyan-950/40 scale-[1.03] pulse-active' 
+                        : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700 shadow-md hover:scale-[1.01]'
+                    }`;
+                    container.onclick = () => selectNode(node.id);
+                } else {
+                    container.className = "w-full h-full rounded-xl border-2 border-dashed border-slate-800 bg-slate-950/20 text-slate-600 flex items-center gap-3 px-3.5 py-2.5 opacity-30 select-none pointer-events-none";
+                }
+
+                // Node content structure
+                container.innerHTML = `
+                    <div class="text-2xl">${node.icon}</div>
+                    <div class="flex-1 text-left min-w-0">
+                        <div class="text-[11px] font-bold font-mono tracking-wide ${isRevealed ? (isSelected ? 'text-cyan-400' : 'text-slate-200') : 'text-slate-600'} leading-snug truncate">
+                            ${node.label.split(' ')[0]}
+                        </div>
+                        <div class="text-[9px] text-slate-400 font-sans tracking-tight leading-normal mt-0.5 truncate">
+                            ${node.label.split(' ').slice(1).join(' ') || 'Theory Node'}
+                        </div>
+                    </div>
+                `;
+
+                // Render dynamic check badge for answered questions
+                if (isRevealed && quizAnswers[node.id] !== undefined) {
+                    const checkBadge = document.createElement('div');
+                    checkBadge.className = "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 border border-slate-900 flex items-center justify-center text-[8px] text-white font-bold shadow-md";
+                    checkBadge.innerHTML = "✓";
+                    container.appendChild(checkBadge);
+                }
+
+                foreignObj.appendChild(container);
+                nodeG.appendChild(foreignObj);
+                nodesGroup.appendChild(nodeG);
+            });
+        }
+
+        // Action when a node is selected -> Populates interactive sidebar content
+        function selectNode(nodeId) {
+            selectedNodeId = nodeId;
+            const node = config.nodes.find(n => n.id === nodeId);
+            if (!node) return;
+
+            // Trigger visual updating of active classes
+            renderDiagram();
+            initProgressTracker();
+
+            // Refresh Dynamic Sidebar Details
+            slideIcon.innerText = node.icon;
+            slideTitle.innerText = node.details.title;
+            slideBilingual.innerText = node.details.subtitle;
+            slideDesc.innerHTML = node.details.desc;
+            slideAnalogy.innerHTML = node.details.analogy;
+            slideTerms.innerHTML = node.details.terms;
+
+            // Scroll sidebar content back to top smoothly on load
+            detailScroller.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Render Node Specific Quiz
+            renderQuiz(node);
+            updateNavigationButtons();
+        }
+
+        // Render dynamic interactive checkpoint questionnaire
+        function renderQuiz(node) {
+            const quiz = node.details.quiz;
+            quizQuestion.innerText = quiz.question;
+            quizOptions.innerHTML = '';
+            quizFeedback.className = "hidden p-3 rounded-lg text-xs leading-relaxed transition-all duration-300";
+
+            const prevAnswer = quizAnswers[node.id];
+
+            quiz.options.forEach(opt => {
+                const optButton = document.createElement('button');
+                optButton.className = "w-full text-left px-3 py-2.5 rounded-lg border text-xs transition duration-150 flex items-start gap-2.5 " + 
+                    (prevAnswer 
+                        ? (opt.correct 
+                            ? 'bg-emerald-950/60 border-emerald-500/80 text-emerald-200 cursor-default' 
+                            : (prevAnswer === opt.key 
+                                ? 'bg-red-950/60 border-red-500/80 text-red-200 cursor-default' 
+                                : 'bg-slate-900/40 border-slate-800 text-slate-400 cursor-default opacity-60'))
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+                    );
+
+                optButton.innerHTML = `
+                    <span class="font-bold text-cyan-400 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] uppercase font-mono mt-0.5">${opt.key}</span>
+                    <span class="flex-1 leading-normal font-sans">${opt.text}</span>
+                `;
+
+                if (!prevAnswer) {
+                    optButton.onclick = () => handleQuizSubmission(node, opt.key);
+                }
+                quizOptions.appendChild(optButton);
+            });
+
+            // If user answered previously, display feedback panel automatically
+            if (prevAnswer) {
+                const selectedOpt = quiz.options.find(o => o.key === prevAnswer);
+                quizFeedback.classList.remove('hidden');
+                if (selectedOpt.correct) {
+                    quizFeedback.className = "p-3 rounded-lg text-xs leading-relaxed transition-all duration-300 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300";
+                    quizFeedback.innerHTML = `🎉 <b>回答正确！</b> ${quiz.feedback}`;
+                } else {
+                    quizFeedback.className = "p-3 rounded-lg text-xs leading-relaxed transition-all duration-300 bg-red-950/40 border border-red-800/60 text-red-300";
+                    quizFeedback.innerHTML = `❌ <b>回答错误。</b> 请再次点击对应选项或根据提示重试。`;
+                }
+            }
+        }
+
+        // Process Interactive quiz submission instantly with visual feedback
+        function handleQuizSubmission(node, selectedKey) {
+            quizAnswers[node.id] = selectedKey;
+            
+            // Re-render current quiz and diagram indicators (to show green ticks)
+            renderQuiz(node);
+            renderDiagram();
+        }
+
+        // Update Nav button states based on node timeline position
+        function updateNavigationButtons() {
+            const currentIndex = config.revealOrder.indexOf(selectedNodeId);
+            
+            // Set Left Prev Button
+            if (currentIndex === 0) {
+                btnPrev.disabled = true;
+                btnPrev.classList.add('opacity-40', 'pointer-events-none');
+            } else {
+                btnPrev.disabled = false;
+                btnPrev.classList.remove('opacity-40', 'pointer-events-none');
+            }
+
+            // Set Right Next Button label
+            if (currentIndex === config.revealOrder.length - 1) {
+                btnNext.innerHTML = '重新开始 (Reset) <span>↺</span>';
+                btnNext.className = "flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-900/20 transition duration-200 flex items-center justify-center gap-2";
+            } else {
+                btnNext.innerHTML = '下一步 (Next) <span>→</span>';
+                btnNext.className = "flex-1 py-2.5 px-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-semibold text-xs shadow-lg shadow-cyan-900/20 transition duration-200 flex items-center justify-center gap-2";
+            }
+        }
+
+        // Step-by-Step Controller Execution Flow
+        btnNext.addEventListener('click', () => {
+            const currentIndex = config.revealOrder.indexOf(selectedNodeId);
+
+            if (currentIndex < config.revealOrder.length - 1) {
+                // If the next node is currently locked, reveal it
+                if (currentIndex === revealedIndex) {
+                    revealedIndex++;
+                }
+                const nextNodeId = config.revealOrder[currentIndex + 1];
+                selectNode(nextNodeId);
+            } else {
+                // Reset State Flow
+                revealedIndex = 0;
+                quizAnswers = {};
+                selectNode(config.revealOrder[0]);
+            }
+        });
+
+        btnPrev.addEventListener('click', () => {
+            const currentIndex = config.revealOrder.indexOf(selectedNodeId);
+            if (currentIndex > 0) {
+                const prevNodeId = config.revealOrder[currentIndex - 1];
+                selectNode(prevNodeId);
+            }
+        });
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            selectNode(config.revealOrder[0]);
+        });
+    </script>
+</body>
+</html>
