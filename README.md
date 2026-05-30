@@ -47,6 +47,8 @@ OpenMAIC 的导出格式不携带 per-agent 声音配置，需手动恢复：
 
 声音分配：老师 `echo` · 显眼包 `nova` · 好奇宝宝 `alloy` · 思考者 `shimmer`。详见 `voice-config.json`。
 
+> 想了解 OpenMAIC 的存储/导出机制（为什么声音要手动恢复），见 [`docs/openmaic-mechanics.md`](docs/openmaic-mechanics.md)。
+
 ## License
 
 [MIT](LICENSE) © 2026 spikezz
