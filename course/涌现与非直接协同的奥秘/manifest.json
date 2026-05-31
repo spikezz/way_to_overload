@@ -10,7 +10,56 @@
     "createdAt": 1780169011357,
     "updatedAt": 1780178512901
   },
-  "agents": [],
+  "agents": [
+    {
+      "name": "老师",
+      "role": "teacher",
+      "persona": "讲解清晰、循循善诱，善用工程类比。用简体中文授课。",
+      "avatar": "/avatars/teacher.png",
+      "color": "#3b82f6",
+      "priority": 10,
+      "voiceConfig": {
+        "providerId": "openai-tts",
+        "voiceId": "echo"
+      }
+    },
+    {
+      "name": "显眼包",
+      "role": "student",
+      "persona": "活跃外向，爱抢答、爱举生活化例子。说话简短有趣，经常用类比和梗。",
+      "avatar": "/avatars/clown.png",
+      "color": "#f59e0b",
+      "priority": 4,
+      "voiceConfig": {
+        "providerId": "openai-tts",
+        "voiceId": "shimmer"
+      }
+    },
+    {
+      "name": "好奇宝宝",
+      "role": "student",
+      "persona": "好奇心强，总追问\"为什么\"\"如果……会怎样\"。问题简洁直接，充满探索欲。",
+      "avatar": "/avatars/curious.png",
+      "color": "#ec4899",
+      "priority": 5,
+      "voiceConfig": {
+        "providerId": "openai-tts",
+        "voiceId": "ballad"
+      }
+    },
+    {
+      "name": "思考者",
+      "role": "student",
+      "persona": "沉稳深入，喜欢追根究底、联系前面学过的概念。发言不多但每次都有分量。",
+      "avatar": "/avatars/thinker.png",
+      "color": "#8b5cf6",
+      "priority": 6,
+      "voiceConfig": {
+        "providerId": "openai-tts",
+        "voiceId": "nova"
+      }
+    }
+  ],
   "scenes": [
     {
       "type": "slide",
@@ -294,7 +343,7 @@
         {
           "id": "action_210DSNwJ",
           "type": "speech",
-          "text": "同学们，大家好！欢迎来到《从生物机制到人工群体智能》的第一堂课。今天，我们将一起揭开大自然最神奇的宏大魔术——‘涌现与非直接协同’（Emergence and Stigmergy）。大家可以想象一下，数百万只没有高等智慧、视力极差的白蚁，在没有‘指挥官’、甚至彼此互不说话的情况下，是如何建造出高耸、复杂且通风良好的蚁丘‘摩天大楼’的？这背后的分布式控制系统究竟是如何运转的？这就是我们本门课程将要深入探讨的课题。",
+          "text": "同学们好！欢迎来到这门关于'涌现与非直接协同'的课程。先给大家一个画面：数百万只几乎看不见东西的白蚁，在没有指挥官、没有施工图纸、彼此甚至互不说话的情况下，竟然能建造出高达数米、结构复杂且自带通风系统的蚁丘。这背后到底是什么机制在运转？谁在'指挥'它们？答案可能出乎你的意料——没有人在指挥。这就是我们要探讨的课题。",
           "audioRef": "audio/tts_action_210DSNwJ.mp3"
         },
         {
@@ -305,7 +354,7 @@
         {
           "id": "action_FGjkKKp2",
           "type": "speech",
-          "text": "首先，我们来面对一个直观的科学谜题，这就是‘协同悖论’（Coordination Paradox）。",
+          "text": "我们先从一个核心谜题开始，科学家们管它叫'协同悖论'。",
           "audioRef": "audio/tts_action_FGjkKKp2.mp3"
         },
         {
@@ -316,7 +365,7 @@
         {
           "id": "action_JxMgYkFu",
           "type": "speech",
-          "text": "如果我们去观察微观的白蚁，会发现一个令人震惊的现象：每个个体之间几乎没有任何直接的通信。它们没有5G网络，不发微信，甚至在筑巢时彼此都没有直接的触觉或视觉信号，就像是在各自孤独地工作。然而，当把镜头拉远到宏观层面，整只蚁群的建造行为却表现得如同有一张无形的总施工图纸在指导一样，高度有序、丝毫不乱。这种‘微观无沟通，宏观高协同’的矛盾现象，就是我们所说的协同悖论。",
+          "text": "如果你拿一台显微镜去观察单只白蚁的行为，会发现一个惊人的事实：每个个体之间几乎没有任何直接的沟通。它们不靠触碰传递指令，不靠声音呼叫同伴，看起来每只白蚁都在埋头干自己的事，对旁边的同伴视若无睹。然而，如果你把镜头拉远，从整个蚁群的角度看，建造行为却表现得高度有序，就好像有一张无形的施工图纸在指导一样。微观上各自为政，宏观上整齐划一——这个矛盾就是'协同悖论'。",
           "audioRef": "audio/tts_action_JxMgYkFu.mp3"
         },
         {
@@ -327,7 +376,7 @@
         {
           "id": "action_aeQOac68",
           "type": "speech",
-          "text": "为了解释这个悖论，历史上科学家们吵得不可开交。一派提出了‘超个体论’（Superorganism），假想群体中存在某种超自然的‘集体灵魂’或无形的信息场，在冥冥之中操控着一切。这听起来很玄妙，但对我们的工程落地没有任何帮助。而另一派则持‘独立个体假说’（Rabaud 理论），认为个体纯粹是各干各的，一切宏观秩序都是概率上的巧合。显然，这两种极端的解释都无法满足我们工科生的严谨要求。",
+          "text": "为了解释这个悖论，历史上科学家们分成了两大阵营，争论了几十年。一派是'超个体论'，代表人物是美国昆虫学家 Wheeler。他在1911年提出：蚁群就像一个放大版的生物体——有生长、有分化、有稳态调节，工蚁相当于体细胞，蚁后相当于生殖细胞。这个类比很有洞察力，但问题在于它只描述了'群体长得像生物体'，却没有回答'底层到底是什么机制在驱动协同'。另一派是法国生物学家 Rabaud 的'独立个体论'，走向了另一个极端：他认为每只黄蜂都在独自干活，彼此毫不关心，你看到的'合作'只是各自劳动成果恰好堆在了同一个巢上的错觉。一个太宏观、一个太微观，都没有找到连接个体行为和群体秩序的那座桥梁。",
           "audioRef": "audio/tts_action_aeQOac68.mp3"
         },
         {
@@ -343,7 +392,7 @@
         {
           "id": "action_1r2WxGpu",
           "type": "speech",
-          "text": "直到1959年，法国生物学家 Pierre-Paul Grassé 提出了一个里程碑式的概念：‘非直接协同’（Stigmergy）。这个概念用我们现代控制工程的语言来描述，其实就是一个经典的状态机模型。大家请看这个公式：当前的‘环境状态’S_t 引导了个体产生特定的‘行为’A_t，而这个行为 A_t 施加到环境上之后，又更新了环境，使其进入新的状态 S_{t+1}，进而引导下一个个体的下一个行为。简单来说，就是‘工作媒介刺激了下一步的工作’，环境本身就是最完美的、分布式的共享内存（Shared Memory）！",
+          "text": "直到1959年，法国生物学家 Grassé 提出了一个改变一切的概念：Stigmergy，也就是'非直接协同'。说穿了，这个概念非常简单。一只白蚁改变了环境——比如在某个地方堆了一颗带信息素的泥粒。这颗泥粒散发出的气味，会吸引下一只路过的白蚁在同一个位置继续堆。个体和个体之间完全不需要对话，它们是在'通过环境'间接沟通。Grassé 把这种机制命名为 Stigmergy，来自希腊语 stigma（痕迹）加 ergon（工作），意思就是'前一步工作留下的痕迹，刺激了下一步工作'。环境既是通信渠道、又是共享记忆、又是施工图纸——一石三鸟。",
           "audioRef": "audio/tts_action_1r2WxGpu.mp3"
         },
         {
@@ -354,7 +403,7 @@
         {
           "id": "action_GgqSIeIa",
           "type": "speech",
-          "text": "这就引导出了‘涌现’（Emergence）的核心视角：简单的个体通过极其简单的、基于局部环境的规则，在不需要全局视图（Global View）的情况下，在宏观上自发涌现出超越个体的智慧与秩序。这不仅是生物学的奇迹，更是我们人工群体智能（Swarm Intelligence）的黄金设计准则。",
+          "text": "于是我们就来到了'涌现'这个核心概念：简单的个体，遵循极其简单的局部规则，完全不需要知道全局发生了什么，就能在宏观上自发产生出远超个体能力的智慧和秩序。这不仅是生物学中最令人惊叹的现象之一，也是人工群体智能的核心设计原则——我们整门课就围绕它展开。",
           "audioRef": "audio/tts_action_GgqSIeIa.mp3"
         },
         {
@@ -364,7 +413,16 @@
           "prompt": "大家可以联想一下，我们在无人机协同或者多机器人系统中，如何利用‘环境媒介’（比如气味、物理标记、数字信息素）来替代高成本的全局实时通信？",
           "agentId": "default-6"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -678,8 +736,8 @@
           "id": "action_43Ah-bx2",
           "title": "开始探索",
           "type": "speech",
-          "text": "欢迎来到昆虫群体行为理论的探索之旅。在这里，我们将剖析微小的个体如何通过去中心化协同，涌现出高阶宏观智能的三个主流理论流派。",
-          "audioRef": "audio/tts_s2_action_43Ah-bx2.mp3"
+          "text": "欢迎来到昆虫群体行为理论的探索之旅。我们来看看：面对'微观无沟通、宏观高协同'的悖论，科学家们曾经提出过哪些理论来解释它。",
+          "audioRef": "audio/tts_action_43Ah-bx2.mp3"
         },
         {
           "id": "action_3kcGVRHg",
@@ -690,9 +748,9 @@
         {
           "id": "action_3kcGVRHg_speech",
           "type": "speech",
-          "text": "首先关注『涌现之谜』。去中心化系统最核心的工程挑战在于：在没有全局地图和中心调度的前提下，微型个体如何避免发生系统冲突或死锁？",
+          "text": "核心问题是这样的：在没有全局蓝图、没有中央调度员的前提下，大量简单的个体怎么可能自发地产生出有组织的集体行为？这个问题困扰了生物学家超过一个世纪。",
           "title": "涌现之谜",
-          "audioRef": "audio/tts_s2_action_3kcGVRHg_speech.mp3"
+          "audioRef": "audio/tts_action_3kcGVRHg_speech.mp3"
         },
         {
           "id": "action_82cX8dbq",
@@ -703,9 +761,9 @@
         {
           "id": "action_82cX8dbq_speech",
           "type": "speech",
-          "text": "超个体论（Superorganism）将群体视为宏观整体，类似于带有闭环反馈的 PID 调节器；而针锋相对的独立个体论（Individualist）则是极端的还原论，认为所谓的集体劳动只是孤立反射在空间上的物理叠加。",
+          "text": "第一个阵营是'超个体论'。以 Wheeler 和 Emerson 为代表，他们认为蚁群本质上就是一个大号的有机体，各种功能——觅食、繁殖、防御——相当于器官在分工。这个类比很有启发性，但它的致命弱点是只描述了'群体像什么'，没有揭示'群体怎么做到的'——就像说'飞机像鸟'不等于解释了飞行原理。对面是 Rabaud 的'独立个体论'，走向另一个极端：所谓集体行为只是大量独立个体各做各的，劳动成果恰好在空间上叠加的错觉。",
           "title": "两大经典流派",
-          "audioRef": "audio/tts_s2_action_82cX8dbq_speech.mp3"
+          "audioRef": "audio/tts_action_82cX8dbq_speech.mp3"
         },
         {
           "id": "action_mak4vH-w",
@@ -716,9 +774,9 @@
         {
           "id": "action_mak4vH-w_speech",
           "type": "speech",
-          "text": "这两大流派对峙数十年。矛盾的根源在于：学术界缺乏一种介质，能够证明微观个体在互不通信的情况下，如何自发地实现长程的、高阶的宏观协同。",
+          "text": "这两派对峙了几十年。矛盾的根源在于：学术界缺乏一种理论工具来解释'个体之间不直接沟通，却能产生长程有序结构'这件事。超个体论说'群体就是一个整体'但不解释机制；独立个体论说'没有真正的合作'但解释不了秩序从何而来。",
           "title": "整体与还原的冲突",
-          "audioRef": "audio/tts_s2_action_mak4vH-w_speech.mp3"
+          "audioRef": "audio/tts_action_mak4vH-w_speech.mp3"
         },
         {
           "id": "action_AT12rxdY",
@@ -729,9 +787,9 @@
         {
           "id": "action_AT12rxdY_speech",
           "type": "speech",
-          "text": "格拉塞提出的『非直接协同（Stigmergy）』打破了僵局！这在软件架构中类似于『共享黑板模式』或 Pub/Sub 异步通信。Agent 之间完全解耦，仅通过修改公共环境状态来隐式传递信息。",
+          "text": "1959年 Grassé 提出的 Stigmergy 打破了僵局。他找到了那座缺失的桥梁：个体之间不需要直接通信，它们通过修改共享的环境来间接传递信息——我放了一颗泥粒，泥粒上的信息素吸引你来放第二颗，你放的第二颗又吸引别人来放第三颗。个体完全解耦，所有协调都通过环境这个中间媒介完成。",
           "title": "非直接协同论",
-          "audioRef": "audio/tts_s2_action_AT12rxdY_speech.mp3"
+          "audioRef": "audio/tts_action_AT12rxdY_speech.mp3"
         },
         {
           "id": "action_bIR3YfEw",
@@ -742,11 +800,20 @@
         {
           "id": "action_bIR3YfEw_speech",
           "type": "speech",
-          "text": "最终，现代复杂自组织理论融入了非线性动力学。正反馈作为局部放大器，在越过临界分岔点时打破平衡并引发宏观相变；负反馈则维持稳定。点击各节点即可探索详细的工程类比并挑战交互题！",
+          "text": "在此基础上，现代研究进一步引入了非线性动力学的视角。正反馈像一个放大器：微小的随机涨落一旦被放大到超过临界点，就会打破均匀、引发全新的宏观结构。负反馈则像一个稳压器，防止正反馈失控。正是这两者的平衡，让无序中涌现出有序。接下来我们通过仿真亲手体验这个过程。",
           "title": "现代自组织理论",
-          "audioRef": "audio/tts_s2_action_bIR3YfEw_speech.mp3"
+          "audioRef": "audio/tts_action_bIR3YfEw_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -878,8 +945,8 @@
           "id": "action_Rl0gcbdY",
           "title": "导言：筑巢的本质",
           "type": "speech",
-          "text": "欢迎来到独居泥蜂筑巢模拟。在自然界中，泥蜂的筑巢过程并非源自宏大的顶层设计，而是由一系列“刺激-反应链条”（Stimulus-Response Chain）驱动的。前一步建造的物理成果，正是触发下一步行为的‘释放刺激（Releasing Stimulus）’。",
-          "audioRef": "audio/tts_s3_action_Rl0gcbdY.mp3"
+          "text": "欢迎来到独居泥蜂 Paralastor 的筑巢模拟。这种蜂是独居的——它不是社会性昆虫，没有同伴合作。但它的筑巢过程却揭示了非直接协同的最基本原理：上一步建造的物理成果，直接触发下一步的建造行为，形成一条'刺激-反应链'。",
+          "audioRef": "audio/tts_action_Rl0gcbdY.mp3"
         },
         {
           "id": "action_6BJ6E00g",
@@ -890,9 +957,9 @@
         {
           "id": "action_6BJ6E00g_speech",
           "type": "speech",
-          "text": "这里的“行为刻板度（Rigidity）”决定了泥蜂在面对环境变化时的纠错能力。高刻板度意味着泥蜂更倾向于机械地跟随预设的行为状态机运行。",
+          "text": "'行为刻板度'控制的是：当环境突然发生意外变化时，泥蜂会不会灵活应对？刻板度越高，泥蜂越死板——它只会机械地按固定步骤走下去，哪怕外界条件已经变了，它也不知道调整。",
           "title": "关注行为刻板度",
-          "audioRef": "audio/tts_s3_action_6BJ6E00g_speech.mp3"
+          "audioRef": "audio/tts_action_6BJ6E00g_speech.mp3"
         },
         {
           "id": "action_P36sM2DP",
@@ -907,9 +974,9 @@
         {
           "id": "action_P36sM2DP_speech",
           "type": "speech",
-          "text": "让我们先来看标准的5阶段筑巢。低刻板度下，泥蜂顺利识别并完成了漏斗柄、漏斗边缘直至收尾的正常构建。这是一个经典的顺序线性状态转移。",
+          "text": "我们先来看正常情况下的五阶段筑巢。泥蜂从挖洞开始，依次完成漏斗柄、弯曲、喇叭口、展宽、最后封边。每完成一个阶段，产生的物理形态恰好是下一阶段的触发信号。整个过程像流水线一样环环相扣，但没有任何'总设计师'——全靠环境在引导。",
           "title": "演示：标准筑巢",
-          "audioRef": "audio/tts_s3_action_P36sM2DP_speech.mp3"
+          "audioRef": "audio/tts_action_P36sM2DP_speech.mp3"
         },
         {
           "id": "action_pmbxDvQG",
@@ -924,9 +991,9 @@
         {
           "id": "action_pmbxDvQG_speech",
           "type": "speech",
-          "text": "如果我们大幅提高行为刻板度，并在漏斗即将形成时人为开孔，你会发现泥蜂由于重新识别到了阶段1的刺激，从而陷入了“套娃式”的双重漏斗死循环！这是过度死板的硬件级状态机导致的典型逻辑死锁。",
+          "text": "现在我们把刻板度调高，然后在漏斗快完成时人为地戳一个洞。这个洞在物理上长得很像最初阶段的刺激信号——于是泥蜂误以为又回到了起点，开始在洞上方重新建第二个漏斗，结果套在了第一个漏斗上面，陷入了一个'套娃'式的死循环！这就是当行为过于刻板、完全没有纠错能力时会发生的事。",
           "title": "异常：套娃陷阱",
-          "audioRef": "audio/tts_s3_action_pmbxDvQG_speech.mp3"
+          "audioRef": "audio/tts_action_pmbxDvQG_speech.mp3"
         },
         {
           "id": "action_5Qp3JRR9",
@@ -937,9 +1004,9 @@
         {
           "id": "action_5Qp3JRR9_speech",
           "type": "speech",
-          "text": "现在，我们增加一个泥蜂。在这个多体系统中，它们并不存在直接的通信，全靠环境作为媒介进行协同。",
+          "text": "现在我们加入第二只泥蜂。注意，这两只泥蜂之间没有任何直接沟通，它们不认识对方，也无法传递信息。",
           "title": "引入多泥蜂",
-          "audioRef": "audio/tts_s3_action_5Qp3JRR9_speech.mp3"
+          "audioRef": "audio/tts_action_5Qp3JRR9_speech.mp3"
         },
         {
           "id": "action_0DwAmhhq",
@@ -954,11 +1021,20 @@
         {
           "id": "action_0DwAmhhq_speech",
           "type": "speech",
-          "text": "这就是“非直接协同”（Stigmergy/印迹协同）。第二只泥蜂并不需要知道第一只做了什么，它只需识别当前巢穴的物理形态，便能无缝接力继续完成筑巢。这种通过修改共享物理环境来实现个体间间接异步合作的机制，是群体智能（Swarm Intelligence）的核心原理。",
+          "text": "观察一下会发生什么：第二只泥蜂并不需要知道第一只做了什么。它只需要'看'一下当前巢穴长什么样子，就能从第一只停下的地方接着往下做。为什么？因为它也是根据同样的刺激-反应规则行动的。这就是 Stigmergy 的原型——个体之间不需要直接交流，只要它们对同样的环境线索做出同样的反应，就能无意识地接力完成一个共同的工程。",
           "title": "演示：非直接协同",
-          "audioRef": "audio/tts_s3_action_0DwAmhhq_speech.mp3"
+          "audioRef": "audio/tts_action_0DwAmhhq_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "slide",
@@ -1186,8 +1262,8 @@
         {
           "id": "action_UZgDk4TR",
           "type": "speech",
-          "text": "正如我们刚才在泥蜂筑巢中所看到的，个体通过改变物理环境来进行间接协作。在群体智能中，这种非直接协同（Stigmergy）机制其实有两个非常经典的分类，也就是我们今天的主角——定量非直接协同与定性非直接协同。它们就像是群体智能的双子星。",
-          "audioRef": "audio/tts_s4_action_UZgDk4TR.mp3"
+          "text": "在前面的泥蜂实验中，我们看到了个体如何通过改变环境来间接协作。在群体智能研究中，这种非直接协同机制被进一步分成了两种类型：定量和定性。它们的区别在于'环境中留下的信号是什么类型的'。",
+          "audioRef": "audio/tts_action_UZgDk4TR.mp3"
         },
         {
           "id": "action_dZT8dN0M",
@@ -1197,8 +1273,8 @@
         {
           "id": "action_r2X5kufi",
           "type": "speech",
-          "text": "我们先来看左边的这一位：定量非直接协同（Quantitative Stigmergy）。这里的“定量”是指，环境中留下的刺激信号在“质”上是没有区别的，唯一的区别在于“量”，也就是强度的不同。",
-          "audioRef": "audio/tts_s4_action_r2X5kufi.mp3"
+          "text": "先看定量非直接协同。这里的'定量'是指：环境中的刺激信号在性质上没有区别，区别只在于强度——也就是'量'的不同。",
+          "audioRef": "audio/tts_action_r2X5kufi.mp3"
         },
         {
           "id": "action_dN2bD0RG",
@@ -1208,8 +1284,8 @@
         {
           "id": "action_HGkdbGex",
           "type": "speech",
-          "text": "比如，信息素的浓度高低，或者泥土堆积的高度。对个体而言，刺激越强，触发下一步动作的概率就越大。这种机制背后主导的是自组织动力学（Self-organization），它不依赖复杂的规则，而是通过简单的概率正反馈（Positive Feedback）来形成宏观秩序。",
-          "audioRef": "audio/tts_s4_action_HGkdbGex.mp3"
+          "text": "最典型的例子就是信息素的浓度。对白蚁来说，信息素就是信息素，没有'A类信息素'和'B类信息素'之分。唯一不同的是浓度高低：浓度越高的地方，白蚁被吸引过去的概率就越大。这种机制不需要复杂的判断规则，纯粹靠'哪里浓度高就往哪里去'的正反馈来产生宏观秩序。",
+          "audioRef": "audio/tts_action_HGkdbGex.mp3"
         },
         {
           "id": "action_F_T199cs",
@@ -1219,8 +1295,8 @@
         {
           "id": "action_SSzi1o6N",
           "type": "speech",
-          "text": "最直观的物理隐喻就是蚁群的路径规划或者堆沙效应。蚂蚁并不会在路口写字，它们只是释放信息素。信息素浓度越高，后面的蚂蚁选择这条路的可能性就越大。这完全是一个“量变引起质变”的过程。",
-          "audioRef": "audio/tts_s4_action_SSzi1o6N.mp3"
+          "text": "举个更直观的例子：蚂蚁觅食。蚂蚁不会在路口立指示牌，它们只是每走一步就释放一点信息素。走过的蚂蚁越多、路径越短（往返越快），信息素就越浓，后面的蚂蚁选这条路的概率就越大。最终最短的路径会'赢'，这完全是一个'量的累积引发质的选择'的过程。",
+          "audioRef": "audio/tts_action_SSzi1o6N.mp3"
         },
         {
           "id": "action_ZThoeb_1",
@@ -1230,8 +1306,8 @@
         {
           "id": "action_pG49fMvO",
           "type": "speech",
-          "text": "接下来，我们把目光转向右边——定性非直接协同（Qualitative Stigmergy）。与定量不同，这里的刺激信号存在着离散的、本质上的“质”的差异。",
-          "audioRef": "audio/tts_s4_action_pG49fMvO.mp3"
+          "text": "接下来看定性非直接协同。与定量相反，这里的刺激信号存在本质上的、离散的'质'的差异。",
+          "audioRef": "audio/tts_action_pG49fMvO.mp3"
         },
         {
           "id": "action_BymeUdyu",
@@ -1241,8 +1317,8 @@
         {
           "id": "action_NBKJl6c3",
           "type": "speech",
-          "text": "这意味着，不同的局部物理拓扑结构，会像“开关”一样，直接触发智能体做出完全不同的后续动作。这种动力学我们称之为自装配动力学（Self-assembling），它更强调结构和形貌的精准控制。",
-          "audioRef": "audio/tts_s4_action_NBKJl6c3.mp3"
+          "text": "什么意思呢？就是说个体面对的不是'浓度高低'，而是'完全不同种类的局部形状'。不同的形状就像不同的开关，触发的是完全不同的动作。比如你面前的巢房有一面墙和有三面墙，触发的建造行为是截然不同的。",
+          "audioRef": "audio/tts_action_NBKJl6c3.mp3"
         },
         {
           "id": "action_Vu3duD8O",
@@ -1252,8 +1328,8 @@
         {
           "id": "action_33vVA5El",
           "type": "speech",
-          "text": "白蚁筑拱和蜜蜂构建精密的六角形蜂巢就是典型代表。白蚁在筑巢时，会根据泥土堆砌出的特定物理几何拓扑，来决定是继续往上垒，还是横向合拢成拱门。这种“看形做事”的本领，就是定性协同的精髓。",
-          "audioRef": "audio/tts_s4_action_33vVA5El.mp3"
+          "text": "最典型的例子就是纸蜂 Polistes 筑巢。纸蜂在扩建巢房时，遇到的局部情况有质的不同：旁边只有一面墙、两面墙还是三面墙。三面墙的位置建造概率最高——因为它在填补一个'角落'，结构最牢固。一面墙的位置概率极低——因为那意味着要开辟全新的一行，风险大。这种'看到什么形状就做什么动作'的离散切换，就是定性协同的精髓。我们马上会在下一节的蜂巢拓扑仿真中亲手调节这些概率。",
+          "audioRef": "audio/tts_action_33vVA5El.mp3"
         },
         {
           "id": "action_pBF9raNN",
@@ -1263,10 +1339,19 @@
         {
           "id": "action_1zeFUhSH",
           "type": "speech",
-          "text": "简单来说，定量靠“浓度和概率”，定性靠“结构和规则”。理解了这两个概念，我们就拿到了打开复杂群体智能大门的钥匙。下面，让我们深入第一种机制，去看看白蚁是如何仅凭相变与分岔（Bifurcation）筑起宏伟拱门的！",
-          "audioRef": "audio/tts_s4_action_1zeFUhSH.mp3"
+          "text": "简单记：定量靠'浓度和概率'——浓度越高越可能做；定性靠'形状和规则'——不同的形状触发不同的动作。理解了这两个概念，我们就掌握了群体智能的两大基本工具。下面让我们先深入定量这一侧，去看看白蚁是如何仅靠信息素浓度的正反馈，就筑起宏伟的土柱和拱门的。",
+          "audioRef": "audio/tts_action_1zeFUhSH.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -1404,8 +1489,8 @@
           "id": "action_VgKTNihV",
           "title": "引入概念",
           "type": "speech",
-          "text": "欢迎来到白蚁筑巢模拟器。今天我们不谈生物学，而是从控制工程的“正反馈”与“耗散”视角，拆解非直接协同（Stigmergy）的自组织奥秘。",
-          "audioRef": "audio/tts_s5_action_VgKTNihV.mp3"
+          "text": "欢迎来到白蚁筑巢模拟器。这一节我们要看的是定量非直接协同最经典的案例：白蚁用带信息素的泥粒筑柱。核心机制就两个词：正反馈和蒸发。它们的较量决定了柱子能不能长出来。",
+          "audioRef": "audio/tts_action_VgKTNihV.mp3"
         },
         {
           "id": "action_heZLiKfb",
@@ -1420,9 +1505,9 @@
         {
           "id": "action_heZLiKfb_speech",
           "type": "speech",
-          "text": "我们先将系统置于临界分岔值（Bifurcation Threshold）以下：低筑巢者密度、高信息素挥发。由于正反馈增益不足以克服高耗散，泥粒无法聚集，系统退化为均匀无序相。",
+          "text": "我们先把白蚁数量调少、让信息素挥发得很快。这时候会发生什么？一只白蚁放下一颗泥粒，但还没等别的白蚁被信息素吸引过来，信息素就已经挥发得差不多了。没有'雪球效应'，泥粒就东一颗西一颗散落一地，永远堆不起柱子。这就是系统在'临界密度'以下的状态。",
           "title": "演示无序状态",
-          "audioRef": "audio/tts_s5_action_heZLiKfb_speech.mp3"
+          "audioRef": "audio/tts_action_heZLiKfb_speech.mp3"
         },
         {
           "id": "action_emlIT_AF",
@@ -1433,9 +1518,9 @@
         {
           "id": "action_emlIT_AF_speech",
           "type": "speech",
-          "text": "这是控制系统“环路增益”的关键阀门：筑巢者密度。密度越高，单位时间内产生的信息素正反馈就越强。",
+          "text": "白蚁数量是系统的关键参数。密度越高，同一时间段内经过某个泥粒附近的白蚁就越多，信息素还来不及挥发就被新一颗泥粒加强了——正反馈跑赢了蒸发。",
           "title": "关注密度参数",
-          "audioRef": "audio/tts_s5_action_emlIT_AF_speech.mp3"
+          "audioRef": "audio/tts_action_emlIT_AF_speech.mp3"
         },
         {
           "id": "action_0GBH_bxs",
@@ -1450,9 +1535,9 @@
         {
           "id": "action_0GBH_bxs_speech",
           "type": "speech",
-          "text": "现在我们提高密度、降低挥发。注意看！一旦超越临界点，系统瞬间发生对称性破缺，空间中自发涌现出分布均匀的有序泥柱（Emergent Order）。这就是经典的自组织相变。",
+          "text": "现在我们把白蚁密度调高、把信息素挥发调慢。注意看！一旦密度超过某个临界值，空间中突然自发出现了一根根分布均匀的土柱。一瞬间从'什么都没有'变成'有序结构'——这就是典型的自组织相变，跟水结冰是同一种数学。",
           "title": "涌现自组织泥柱",
-          "audioRef": "audio/tts_s5_action_0GBH_bxs_speech.mp3"
+          "audioRef": "audio/tts_action_0GBH_bxs_speech.mp3"
         },
         {
           "id": "action_TnKPLleA",
@@ -1463,9 +1548,9 @@
         {
           "id": "action_TnKPLleA_speech",
           "type": "speech",
-          "text": "而信息素挥发率则扮演了“负反馈耗散”的角色。它决定了信息素在空间中的衰减速度，也是柱间竞争范围的决定因素。",
+          "text": "信息素的挥发速度扮演的是'负反馈'的角色。它决定了信息素气味能在空间中扩散多远、持续多久。挥发快，气味范围小，柱子之间的竞争弱，可以并存很多柱子。挥发慢，气味范围大，强柱的信息素会'吃掉'弱柱的白蚁，最终只剩少数几根大柱。",
           "title": "关注负反馈",
-          "audioRef": "audio/tts_s5_action_TnKPLleA_speech.mp3"
+          "audioRef": "audio/tts_action_TnKPLleA_speech.mp3"
         },
         {
           "id": "action_baoILcwp",
@@ -1480,18 +1565,27 @@
         {
           "id": "action_baoILcwp_speech",
           "type": "speech",
-          "text": "如果我们把耗散（挥发）降到极低，并把密度推向极致。极强的正反馈会引发剧烈的“资源争夺”，泥柱之间发生合并（Coalescence），最终由于多稳态（Multistability）演化成少数超级巨柱。",
+          "text": "如果我们把挥发调到极低、密度推到极高会怎样？正反馈极强，柱子之间的竞争变得非常激烈。小柱子不断被吸收、合并到大柱子里，最终可能只剩一两根超级巨柱。这就是'多稳态'——同样的规则，因为初始条件不同，可以演化出不同数量的柱子，每种状态都是稳定的。",
           "title": "巨柱竞争与合并",
-          "audioRef": "audio/tts_s5_action_baoILcwp_speech.mp3"
+          "audioRef": "audio/tts_action_baoILcwp_speech.mp3"
         },
         {
           "id": "action_EMFM02d_",
           "title": "总结与自由探索",
           "type": "speech",
-          "text": "白蚁个体极其简单，但通过信息素调节的“正反馈-负反馈”闭环，无需任何全局规划就实现了宏观建构。现在轮到你手动调节这三个滑块，寻找属于你的相空间分岔点吧！",
-          "audioRef": "audio/tts_s5_action_EMFM02d_.mp3"
+          "text": "白蚁个体的行为极其简单：感知信息素浓度，往浓的地方走，放下泥粒。就这样。但'正反馈加上负反馈'这对组合拳，无需任何全局规划，就能让无序变有序。现在轮到你了——动手调节这三个滑块，找找临界点在哪里！",
+          "audioRef": "audio/tts_action_EMFM02d_.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -1621,8 +1715,8 @@
           "id": "action_vx7rFshw",
           "title": "非直接协同",
           "type": "speech",
-          "text": "欢迎来到纸蜂筑巢模拟！我们将一起探索非直接协同（Stigmergy）如何让无意识的昆虫个体，仅凭局部环境刺激，就能涌现出宏观上完美的圆形蜂巢。",
-          "audioRef": "audio/tts_s6_action_vx7rFshw.mp3"
+          "text": "欢迎来到纸蜂 Polistes 筑巢模拟！上一节我们看了定量协同——靠信息素浓度。这一节切换到定性协同——靠几何形状。纸蜂扩建巢房时，并不看信息素浓度，而是看建造位点旁边有几面现有的墙。这个'邻墙数'直接决定了它在那个位置动工的概率。",
+          "audioRef": "audio/tts_action_vx7rFshw.mp3"
         },
         {
           "id": "action_E7SmdSYV",
@@ -1633,9 +1727,9 @@
         {
           "id": "action_E7SmdSYV_speech",
           "type": "speech",
-          "text": "这里是 S₂（即筑巢位点有2个相邻墙面）时的筑巢概率。在自然界中，这个概率被控制得很低，以避免盲目扩张。",
+          "text": "这里控制的是当建造位点有两面邻墙时的建造概率。在自然界里，纸蜂对两面墙的位点兴趣不大，概率被压得很低——因为从两面墙开始新一行，结构上不够稳固。",
           "title": "关注 S2 概率",
-          "audioRef": "audio/tts_s6_action_E7SmdSYV_speech.mp3"
+          "audioRef": "audio/tts_action_E7SmdSYV_speech.mp3"
         },
         {
           "id": "action_rSsddb1r",
@@ -1650,9 +1744,9 @@
         {
           "id": "action_rSsddb1r_speech",
           "type": "speech",
-          "text": "如果我们像写硬编码一样，把 P(S₂) 和 P(S₃) 都设得极高，蜂巢边缘就会疯狂分岔（Bifurcation），最终形成松散易碎的病态结构。请观察模拟区中生长出的畸形分支。",
+          "text": "如果我们把两面墙和三面墙的建造概率都调到很高，会发生什么？蜂巢边缘会疯狂地向各个方向长出分叉，变成松散易碎的畸形结构。这就是缺乏选择性的后果——任何位点都有很高的概率被动工，形状完全失控。",
           "title": "确定性病态发育",
-          "audioRef": "audio/tts_s6_action_rSsddb1r_speech.mp3"
+          "audioRef": "audio/tts_action_rSsddb1r_speech.mp3"
         },
         {
           "id": "action_Rj7HL1O7",
@@ -1663,9 +1757,9 @@
         {
           "id": "action_Rj7HL1O7_speech",
           "type": "speech",
-          "text": "相比之下，3个相邻墙面（S₃）的结构最稳固。大自然的精妙之处，在于让 P(S₃) 的概率远高于 P(S₂)。",
+          "text": "三面墙的位点才是最牢固的——它实际上是在'填角落'，三面受力，结构最稳。大自然的精妙之处，就在于纸蜂对三面墙位点的建造偏好远远高于两面墙。",
           "title": "关注 S3 概率",
-          "audioRef": "audio/tts_s6_action_Rj7HL1O7_speech.mp3"
+          "audioRef": "audio/tts_action_Rj7HL1O7_speech.mp3"
         },
         {
           "id": "action_cIfP2fR5",
@@ -1680,18 +1774,27 @@
         {
           "id": "action_cIfP2fR5_speech",
           "type": "speech",
-          "text": "现在我们恢复自然界的黄金比例：P(S₃) 是 P(S₂) 的10倍。这种概率差就像物理学中的‘表面张力’，会自动填补凹角，完美圆形的蜂巢结构开始自组织涌现！",
+          "text": "根据对自然蜂群的实测，三面墙位点的建造概率大约是两面墙的十倍。这种概率差异的效果惊人：它会自动优先填补巢穴边缘的凹角，同时抑制向外冒出分叉的倾向。最终的结果就是——圆形蜂巢自发涌现。",
           "title": "自然概率自组织",
-          "audioRef": "audio/tts_s6_action_cIfP2fR5_speech.mp3"
+          "audioRef": "audio/tts_action_cIfP2fR5_speech.mp3"
         },
         {
           "id": "action_N9domIV1",
           "title": "总结自然法则",
           "type": "speech",
-          "text": "这就是大自然的高效算法：不需要一个拥有全局视角的‘总设计师’，仅靠局部的概率偏好进行噪声过滤，就能优雅地解决工程结构优化问题。",
-          "audioRef": "audio/tts_s6_action_N9domIV1.mp3"
+          "text": "这就是定性协同的魅力：不需要'总设计师'来画蓝图，仅靠'不同形状触发不同概率'这一条简单规则，就能让巢穴自动长成结构优化的形状。调调滑块，亲手感受一下吧。",
+          "audioRef": "audio/tts_action_N9domIV1.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -1746,8 +1849,8 @@
           "id": "action_cdZpoOIF",
           "title": "引入非直接协同",
           "type": "speech",
-          "text": "欢迎来到代码沙盒！今天我们用极简的 Python if-then 规则，让成百上千个智能体通过非直接协同 (Stigmergy) 涌现出复杂的筑巢结构。",
-          "audioRef": "audio/tts_s7_action_cdZpoOIF.mp3"
+          "text": "欢迎来到代码沙盒！这一节我们要用极简的代码，让成百上千个智能体通过非直接协同涌现出复杂结构。每个智能体只有一条规则：看看周围有几块砖，如果满足条件就放一块，否则继续随机游走。",
+          "audioRef": "audio/tts_action_cdZpoOIF.mp3"
         },
         {
           "id": "action_fIDbct8q",
@@ -1758,9 +1861,9 @@
         {
           "id": "action_fIDbct8q_speech",
           "type": "speech",
-          "text": "请看代码编辑器。你将在这里定义智能体的局部感知逻辑，通过获取邻域 (Neighborhood) 的状态来做出决策。",
+          "text": "左边是代码编辑器。你可以在这里修改智能体的局部感知逻辑——它能看到周围邻域的状态，然后根据你定义的条件决定放砖还是走开。",
           "title": "定位感知代码",
-          "audioRef": "audio/tts_s7_action_fIDbct8q_speech.mp3"
+          "audioRef": "audio/tts_action_fIDbct8q_speech.mp3"
         },
         {
           "id": "action_ehcrESCu",
@@ -1773,9 +1876,9 @@
         {
           "id": "action_ehcrESCu_speech",
           "type": "speech",
-          "text": "我们为你自动载入了这套微规则：当局部邻域恰好有 3 个砖块时，智能体执行 deposit（放置砖块），否则继续随机移动。",
+          "text": "我们已经预装了一条默认规则：当周围恰好有三块砖时放砖，否则继续游走。论文里 Theraulaz 和 Bonabeau 的格点蜂群模型证明，哪怕只用两种砖块类型加上简单的 if-then 规则，就能涌现出复杂得惊人的三维建筑结构。",
           "title": "加载微规则",
-          "audioRef": "audio/tts_s7_action_ehcrESCu_speech.mp3"
+          "audioRef": "audio/tts_action_ehcrESCu_speech.mp3"
         },
         {
           "id": "action_rGjm7QAE",
@@ -1786,9 +1889,9 @@
         {
           "id": "action_rGjm7QAE_speech",
           "type": "speech",
-          "text": "右侧是网格可视化面板。虽然没有中央控制，但成百上千个智能体并发运行这些微规则后，这里将涌现出完美的几何结构。",
+          "text": "右边是可视化面板。虽然没有中央控制器，但大量智能体同时运行这些微规则后，你会看到边界、层次、甚至类似自然蜂巢的几何结构自发浮现出来。",
           "title": "预览输出面板",
-          "audioRef": "audio/tts_s7_action_rGjm7QAE_speech.mp3"
+          "audioRef": "audio/tts_action_rGjm7QAE_speech.mp3"
         },
         {
           "id": "action_fIeGUFt7",
@@ -1799,11 +1902,20 @@
         {
           "id": "action_fIeGUFt7_speech",
           "type": "speech",
-          "text": "现在，点击运行按钮，启动异步、无锁的并发模拟，观察正反馈 (Positive Feedback) 是如何自发形成巢穴边界的！",
+          "text": "点击运行按钮，启动模拟。注意观察：正反馈会让最初的随机砖块逐渐聚集，形成越来越清晰的结构边界。试试修改规则里的邻域条件数字，看看形状会怎么变化！",
           "title": "启动异步模拟",
-          "audioRef": "audio/tts_s7_action_fIeGUFt7_speech.mp3"
+          "audioRef": "audio/tts_action_fIeGUFt7_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -1877,8 +1989,8 @@
           "id": "action_7nANcyWh",
           "title": "概念引入",
           "type": "speech",
-          "text": "欢迎来到蜂巢架构师挑战！在这里你将体验 **Stigmergy/非直接协同** 的奥秘：你无法直接控制每个智能体，只能通过调节环境规则来间接引导它们。",
-          "audioRef": "audio/tts_s8_action_7nANcyWh.mp3"
+          "text": "欢迎来到蜂巢架构师挑战！在这里你将亲身体验非直接协同的核心困难：你不能直接命令任何一只智能体，只能通过调节环境规则来间接引导它们的行为。",
+          "audioRef": "audio/tts_action_7nANcyWh.mp3"
         },
         {
           "id": "action_xFDFTBNJ",
@@ -1889,9 +2001,9 @@
         {
           "id": "action_xFDFTBNJ_speech",
           "type": "speech",
-          "text": "这个滑块控制 Rule 1 (2-walls) 释放概率。高概率会鼓励智能体在两侧有邻居时筑巢，是初始化蜂巢边界的关键。",
+          "text": "这个滑块控制'两面墙位点'的建造概率。调高它可以加速初始边界的形成，但调太高会导致到处开花、分叉失控。",
           "title": "认识规则一",
-          "audioRef": "audio/tts_s8_action_xFDFTBNJ_speech.mp3"
+          "audioRef": "audio/tts_action_xFDFTBNJ_speech.mp3"
         },
         {
           "id": "action_KuNnxhAL",
@@ -1906,9 +2018,9 @@
         {
           "id": "action_KuNnxhAL_speech",
           "type": "speech",
-          "text": "我们先将 Rule 1 概率调高。这会触发 **Positive Feedback/正反馈**，让初始结构迅速成型，智能体会沿着你设定的潜在边界聚集。",
+          "text": "先把两面墙的概率适当调高。这会触发正反馈，让初始结构迅速成型，智能体会沿着你设定的种子点开始聚集建造。",
           "title": "触发正反馈",
-          "audioRef": "audio/tts_s8_action_KuNnxhAL_speech.mp3"
+          "audioRef": "audio/tts_action_KuNnxhAL_speech.mp3"
         },
         {
           "id": "action_TSaX2mB5",
@@ -1919,9 +2031,9 @@
         {
           "id": "action_TSaX2mB5_speech",
           "type": "speech",
-          "text": "这是你的主战场。当发现有智能体“跑偏”筑起多余的分支时，你可以直接用鼠标在画布上擦除它们，强制系统回到完美圆形轨道。",
+          "text": "这是你的主战场。如果发现有智能体'跑偏'、筑起了不该有的分支，你可以用鼠标直接在画布上擦除它们，把系统拉回正轨。这就像是在做'最小干预'的调控——你不是在画蓝图，而是在修剪枝条。",
           "title": "手动干预",
-          "audioRef": "audio/tts_s8_action_TSaX2mB5_speech.mp3"
+          "audioRef": "audio/tts_action_TSaX2mB5_speech.mp3"
         },
         {
           "id": "action_h7jN7CPF",
@@ -1934,18 +2046,27 @@
         {
           "id": "action_h7jN7CPF_speech",
           "type": "speech",
-          "text": "现在加入随机强风干扰！系统可能会发生 **Bifurcation/分岔** 走向畸形。考验你动态调节和即时修补能力的时候到了，保持系统的鲁棒性！",
+          "text": "现在加入随机扰动！系统可能会突然偏离原来的形态路径，走向畸形结构。这考验的是你动态调节参数和及时修补的能力。",
           "title": "抗干扰挑战",
-          "audioRef": "audio/tts_s8_action_h7jN7CPF_speech.mp3"
+          "audioRef": "audio/tts_action_h7jN7CPF_speech.mp3"
         },
         {
           "id": "action_1VQddPBL",
           "title": "开启挑战",
           "type": "speech",
-          "text": "准备好了吗？点击开始，用最少的干预，引导蜂群建造出最完美的圆形纸蜂巢，赢取高分奖励吧！",
-          "audioRef": "audio/tts_s8_action_1VQddPBL.mp3"
+          "text": "准备好了吗？目标是用最少的干预，引导蜂群建造出最完美的圆形蜂巢。开始吧！",
+          "audioRef": "audio/tts_action_1VQddPBL.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -2074,8 +2195,8 @@
           "id": "action_lPuuwqq8",
           "title": "引入概念",
           "type": "speech",
-          "text": "欢迎来到双桥实验模拟！今天我们用工程视角拆解群体智能如何通过 Stigmergy（非直接协同）在没有中央指挥的情况下，自发收敛至最优路径。",
-          "audioRef": "audio/tts_s9_action_lPuuwqq8.mp3"
+          "text": "欢迎来到经典的蚁群双桥实验模拟！蚂蚁从巢穴出发觅食，面前有两条路——一条长一条短。没有蚂蚁知道哪条更短，但群体最终几乎总能锁定最短路径。怎么做到的？",
+          "audioRef": "audio/tts_action_lPuuwqq8.mp3"
         },
         {
           "id": "action_yoLcnQUa",
@@ -2086,9 +2207,9 @@
         {
           "id": "action_yoLcnQUa_speech",
           "type": "speech",
-          "text": "这个滑块控制两条路径的长度比（B/A）。比例大于 1 意味着存在一条更高效的“短路”。",
+          "text": "这个滑块控制两条路径的长度比。比值越大，长路和短路的差距越明显。",
           "title": "路径比例",
-          "audioRef": "audio/tts_s9_action_yoLcnQUa_speech.mp3"
+          "audioRef": "audio/tts_action_yoLcnQUa_speech.mp3"
         },
         {
           "id": "action_jli1dTX7",
@@ -2103,9 +2224,9 @@
         {
           "id": "action_jli1dTX7_speech",
           "type": "speech",
-          "text": "我们先载入“最优自组织收敛”参数。注意看：由于短路用时少，蚂蚁往返频率高，导致短路上的信息素浓度迅速形成 Positive Feedback（正反馈），蚁群最终会全量锁定最短路径。",
+          "text": "先用默认参数看看'最优收敛'是什么样的。关键在于：走短路的蚂蚁往返更快，单位时间里在短路上跑过的蚂蚁就更多，信息素累积得就更快。后来的蚂蚁闻到短路上信息素更浓，选短路的概率就更大，又进一步加强了短路的信息素——这就是正反馈。最终短路'赢了'，全群收敛。",
           "title": "最优收敛演示",
-          "audioRef": "audio/tts_s9_action_jli1dTX7_speech.mp3"
+          "audioRef": "audio/tts_action_jli1dTX7_speech.mp3"
         },
         {
           "id": "action_WM388SLE",
@@ -2116,9 +2237,9 @@
         {
           "id": "action_WM388SLE_speech",
           "type": "speech",
-          "text": "现在把目光投向“信息素蒸发率”。环境痕迹在 Stigmergy 中充当 Distributed Memory（分布式存储器），而蒸发率则是这个存储器的‘衰减系数’，也是调节系统动力学的核心控制阀。",
+          "text": "现在关注'信息素蒸发率'这个参数。信息素留在路上就像环境的'记忆'——它记录着'最近有蚂蚁走过这里'。蒸发率决定了这份记忆能保持多久。",
           "title": "核心蒸发率",
-          "audioRef": "audio/tts_s9_action_WM388SLE_speech.mp3"
+          "audioRef": "audio/tts_action_WM388SLE_speech.mp3"
         },
         {
           "id": "action_imoVkH8A",
@@ -2133,9 +2254,9 @@
         {
           "id": "action_imoVkH8A_speech",
           "type": "speech",
-          "text": "如果我们将蒸发率调高至 0.07（即协同中断状态），信息素消散过快，正反馈机制无法跑赢衰减，分布式存储器失效，导致协同链条彻底断裂，蚁群开始无序混乱。",
+          "text": "如果蒸发率调得太高会怎样？记忆消失得太快，后面的蚂蚁还没来得及读到前面的信息素就已经挥发光了。正反馈跑不赢蒸发，蚁群变成了一盘散沙，完全无法收敛。",
           "title": "协同中断演示",
-          "audioRef": "audio/tts_s9_action_imoVkH8A_speech.mp3"
+          "audioRef": "audio/tts_action_imoVkH8A_speech.mp3"
         },
         {
           "id": "action_A2uwDnSE",
@@ -2150,11 +2271,20 @@
         {
           "id": "action_A2uwDnSE_speech",
           "type": "speech",
-          "text": "反过来，如果蒸发率过低（0.002），则会导致“历史锁定”效应。一旦前期随机选择了长路径，由于信息素几乎不蒸发，次优解会被死死锁住，系统失去纠错和优化能力。这就是为什么工程调试中，适度的噪声和衰减至关重要！",
+          "text": "反过来，如果蒸发率太低呢？记忆太顽固了。假设一开始有几只蚂蚁碰巧先走了长路，信息素几乎不蒸发，长路的信息素就被牢牢锁住了。哪怕后来有蚂蚁发现了短路，也很难逆转已经形成的'历史偏好'。这就是所谓的'锁定效应'。所以适度的蒸发非常关键——它让系统既能学会新东西、又不会遗忘太快。",
           "title": "历史锁定演示",
-          "audioRef": "audio/tts_s9_action_A2uwDnSE_speech.mp3"
+          "audioRef": "audio/tts_action_A2uwDnSE_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "quiz",
@@ -2318,25 +2448,25 @@
         {
           "id": "action_2vv_5cPl",
           "type": "speech",
-          "text": "刚刚我们完成了上篇关于数字信息素与路径优化的仿真实验。到现在为止，我们已经一步步从昆虫的无意识行为，走向了群体涌现的壮丽景观。在进入下篇更复杂的自组织行为之前，我们先通过这 5 道通关题，来检验一下大家对这部分核心概念的掌握程度。",
+          "text": "到目前为止，我们已经一步步从昆虫的无意识行为，走到了群体涌现的壮丽景观。在进入下篇更多样的自组织行为之前，先用五道题来检验一下大家对核心概念的掌握。",
           "audioRef": "audio/tts_action_2vv_5cPl.mp3"
         },
         {
           "id": "action_Hym-xR4P",
           "type": "speech",
-          "text": "首先是“协同悖论”与 Stigmergy（环境协同）。很多初学者容易误以为蚁后或蜂王是“总指挥”，但实际上，Q1 的正确答案是 B。每个个体只是根据局部环境自主行动，个体之间并没有全局关照。而实现这种非接触式协同的核心，正是 Q2 的答案 B——个体改变局部环境，而被改变的环境作为媒介，反过来触发同一或其它个体产生下一步动作。这就是我们反复强调的“间接协同”。",
+          "text": "先看前两题。Q1 问协同悖论的含义——正确答案是 B。很多人直觉以为蚁后或蜂王是'总指挥'，但实际上蚁后只负责产卵，不参与建造调度。每个工蚁只是根据身边的局部环境自主行动，个体之间并没有全局协调。Q2 问非直接协同的核心机制——答案也是 B：个体改变局部环境，被改变的环境反过来触发其他个体的下一步动作。注意，这里不是'通过身体接触传指令'（A），也不是'空中飘浮的远程化学信号'（C），而是通过**修改环境**来间接沟通。",
           "audioRef": "audio/tts_action_Hym-xR4P.mp3"
         },
         {
           "id": "action_lyfmJNeB",
           "type": "speech",
-          "text": "接下来是定量与定性 Stigmergy。Q3 的多选题，正确答案是 A、B、C。定量 Stigmergy 中信息素梯度的强弱会改变响应概率，白蚁筑柱的正反馈、临界密度和多稳态就是典型代表；而定性 Stigmergy 则是由离散的几何特征（如邻墙数）触发不同的特定动作。至于格点蜂群的三维规则（Q4），答案是 C。不同的三维 if-then 微观规则，无论是确定性还是概率性的，都能够自下而上地涌现出完全不同的巢穴形态。微观规则的微调，会带来宏观形态的巨变。",
+          "text": "Q3 问定量和定性协同的区别——正确答案是 A、B、C。定量协同靠的是信息素浓度的高低（连续的'量'），白蚁筑柱是典型代表。定性协同靠的是离散的几何特征（不同的'质'），纸蜂 Polistes 根据邻墙数建造就是典型。注意 D 选项说 Polistes 是定量——这是错的，Polistes 是定性协同的经典案例。Q4 问格点蜂群的微规则——答案是 C。不同的 if-then 规则会涌现出完全不同的三维形态。确定性规则也能生成复杂结构，并不是只有随机规则才行。",
           "audioRef": "audio/tts_action_lyfmJNeB.mp3"
         },
         {
           "id": "action_mSDDjbl9",
           "type": "speech",
-          "text": "最后是大家非常熟悉的蚁群寻路机制（Q5），正确答案是 A、B、D。这里有一个极其重要的工程启示：信息素的“自然蒸发”（D 选项）不仅不是缺陷，反而是系统能够动态适应路径变化、避免陷入局部最优的关键。在算法设计中，适度的“遗忘”和正反馈的累积（B 选项）同样重要，它们共同构成了系统自适应调节的阴阳两面。",
+          "text": "最后是 Q5，蚁群最短路径——正确答案是 A、B、D。C 说蚂蚁有全局空间记忆能力，这是错的。蚂蚁完全不知道全局路网长什么样，它们只是在信息素浓的地方更可能往前走——纯粹是局部信息驱动的。特别值得注意的是 D 选项：信息素的自然蒸发不是缺陷，反而是关键优势——它让系统具备了'遗忘'能力，可以动态适应路径变化、避免永远锁死在次优路线上。在算法设计中，适度的遗忘和正反馈的累积同样重要。",
           "audioRef": "audio/tts_action_mSDDjbl9.mp3"
         },
         {
@@ -2346,7 +2476,16 @@
           "prompt": "思考一下，在没有中央服务器的情况下，如何利用环境作为媒介来让多个智能体高效协作？",
           "agentId": "default-6"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -2510,7 +2649,7 @@
           "id": "action_qtVFBz6G",
           "title": "开始探索",
           "type": "speech",
-          "text": "欢迎来到 Leptothorax 蚂蚁自组织分拣模拟。在这里，我们将观察没有任何指挥官的蚂蚁，如何仅凭局部规则实现完美的物资分类。",
+          "text": "欢迎来到蚂蚁分拣模拟。Leptothorax 蚂蚁的工蚁会把巢里的卵、幼虫和茧按发育阶段分成不同的堆，但没有任何蚂蚁知道'应该怎么分类'——它们只有两条简单的局部规则。",
           "audioRef": "audio/tts_action_qtVFBz6G.mp3"
         },
         {
@@ -2522,7 +2661,7 @@
         {
           "id": "action_1SjtPydJ_speech",
           "type": "speech",
-          "text": "感知半径决定了工蚁能‘看’多远。半径越大，它对周围同类物体密度的估计就越准确，这直接决定了分拣堆的最终大小和纯度。",
+          "text": "'感知半径'决定了工蚁能看到多远的范围。半径越大，它对周围'同类物品有多少'的估计就越准确，分拣的效果也越好。",
           "title": "感知半径",
           "audioRef": "audio/tts_action_1SjtPydJ_speech.mp3"
         },
@@ -2542,7 +2681,7 @@
         {
           "id": "action_hpd1EYFu_speech",
           "type": "speech",
-          "text": "我们先来看‘经典三色分拣’：三种物资随机散布，80只蚂蚁开始干活。工蚁遇到落单物资容易捡起（k1），遇到同类聚集处容易放下（k2）。通过正反馈，大堆会像雪球一样越滚越大。",
+          "text": "先看经典的三类物品分拣。规则很简单：工蚁随机游走，碰到一个落单或者只有少数同类的物品时，倾向于捡起来；碰到同类聚集的大堆时，倾向于放下来。就是这两条规则——'孤立的就捡、扎堆的就放'——产生了正反馈：大堆像雪球一样越滚越大，小堆和散落的逐渐被清空。",
           "title": "经典三色分拣",
           "audioRef": "audio/tts_action_hpd1EYFu_speech.mp3"
         },
@@ -2562,7 +2701,7 @@
         {
           "id": "action_P71VnzOX_speech",
           "type": "speech",
-          "text": "如果我们将感知半径缩减到1格（局限视野），工蚁只能感知紧邻的一圈。你会发现，虽然也会自组织堆放，但极难形成单一的大堆，而是形成了大量零散的小堆。",
+          "text": "如果把感知半径缩到最小（只看紧挨着的一圈），会怎样？工蚁的'视野'太窄了，它很难判断附近到底有没有一个大堆。结果就是虽然也会自发聚堆，但形成的是大量零散的小堆，很难合并成干净的大类。",
           "title": "局限视野",
           "audioRef": "audio/tts_action_P71VnzOX_speech.mp3"
         },
@@ -2582,11 +2721,20 @@
         {
           "id": "action_anpDN5tX_speech",
           "type": "speech",
-          "text": "最后，让我们把感知半径扩大到3格，减少到2个类别，并加快演化速度。宽广的视野和强大的聚合倾向，会让物资迅速合并，形成两个纯净的超大堆！",
+          "text": "最后我们把感知半径调大、物品类别减少到两种。宽广的视野加上强烈的聚合倾向，两种物品会迅速各自合并成一个大堆——整个过程完全自发，没有任何蚂蚁知道全局分布是什么样的。",
           "title": "快速合并",
           "audioRef": "audio/tts_action_anpDN5tX_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -2737,7 +2885,7 @@
           "id": "action_SwKau49k",
           "title": "介绍背景",
           "type": "speech",
-          "text": "欢迎来到蜜蜂巢脾自组织模拟。你将看到蜂群如何在没有‘总设计师’的情况下，仅靠简单的局部规则，自发形成中心育儿、中圈花粉、外圈蜂蜜的三个完美同心环。",
+          "text": "欢迎来到蜜蜂巢脾模拟。自然界中蜜蜂的巢脾有一个非常整齐的空间布局：中心是育儿区，中圈是花粉，外圈是蜂蜜。但没有任何一只蜜蜂'设计'过这个布局——Camazine 在1991年用计算机仿真证明，这个三环结构纯粹由局部存取规则自发涌现。",
           "audioRef": "audio/tts_action_SwKau49k.mp3"
         },
         {
@@ -2749,7 +2897,7 @@
         {
           "id": "action_p7I4y79K_speech",
           "type": "speech",
-          "text": "这个滑块控制蜂王在中心区域的产卵速率。蜂王倾向于在巢中央空闲的巢房中产卵，这是形成中心育儿区的关键初始驱动力。",
+          "text": "这个滑块控制蜂王在中心区域的产卵频率。蜂王倾向于在巢中央的空闲巢房里产卵，这是形成中心育儿区的初始驱动力。",
           "title": "产卵率滑块",
           "audioRef": "audio/tts_action_p7I4y79K_speech.mp3"
         },
@@ -2768,7 +2916,7 @@
         {
           "id": "action_u0vpR6Kh_speech",
           "type": "speech",
-          "text": "我们首先载入‘标准自组织’状态。在这种基准参数下，由于局部周转率和消耗速度的差异，同心三色环将最稳定地浮现。",
+          "text": "先用标准参数来观察。关键机制是'差异化周转'——育儿区附近的花粉和蜂蜜会被优先消耗（因为要喂幼虫），所以这些巢房周转快、经常空出来。而外围的蜂蜜很少被消耗，巢房长期被占满。结果就是：中心不断空出给育儿，蜂蜜被不断推向外围，自然形成同心分层。",
           "title": "标准自组织",
           "audioRef": "audio/tts_action_u0vpR6Kh_speech.mp3"
         },
@@ -2781,7 +2929,7 @@
         {
           "id": "action_y1inkPDJ_speech",
           "type": "speech",
-          "text": "这里是蜂蜜存入率。工蜂带回的蜜和粉会随机存入空巢房，但育儿区附近的花粉和蜜会被优先消耗。正是这种差异化周转，导致了空间上的自然分层。",
+          "text": "蜂蜜存入率控制的是：工蜂带回蜂蜜后，往空巢房里存蜜的速度。存入是就近的——哪里有空就存哪里。但因为育儿区附近的空巢房更多（周转快），蜜和粉会先存在离育儿区最近的空位上，消耗后又空出来——形成了中圈花粉带。",
           "title": "蜂蜜存入率",
           "audioRef": "audio/tts_action_y1inkPDJ_speech.mp3"
         },
@@ -2800,7 +2948,7 @@
         {
           "id": "action_-DiB1qSw_speech",
           "type": "speech",
-          "text": "现在我们模拟‘高采蜜期’。此时蜂蜜存入率极高，外围的蜂蜜区域会迅速扩张，你会观察到蜂蜜逐渐向内侵占其他区域的动态过程。",
+          "text": "现在模拟'丰收季'——蜂蜜存入量大增。外围的蜂蜜区域会迅速向内扩张，甚至开始挤压花粉区。观察一下这种动态过程，看看系统在高负荷下还能不能维持分层结构。",
           "title": "高采蜜期",
           "audioRef": "audio/tts_action_-DiB1qSw_speech.mp3"
         },
@@ -2813,11 +2961,20 @@
         {
           "id": "action_stZVz4fb_speech",
           "type": "speech",
-          "text": "点击启动按钮，观察这些色彩斑斓的巢房如何通过极其简单的局部规则（存入与消耗），逐步涌现出井然有序的全局空间结构！",
+          "text": "点击启动，观察三种颜色（育儿、花粉、蜂蜜）如何通过极其简单的'存入、消耗、腾出'规则，自动形成井然有序的空间分层。没有设计师，只有局部规则和差异化的周转速度。",
           "title": "启动模拟",
           "audioRef": "audio/tts_action_stZVz4fb_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "interactive",
@@ -2948,7 +3105,7 @@
           "id": "action_x-c8WdHM",
           "title": "概念引入",
           "type": "speech",
-          "text": "欢迎来到主动行走模型模拟器！在这里我们将探索“环境痕迹”如何引导个体协同。这不仅发生在蚂蚁等昆虫中，哺乳动物的气味标记和人类在草地上踩出的便道网络，都是通过环境媒介进行的非直接协同。",
+          "text": "欢迎来到'主动行走模型'模拟器。非直接协同不仅存在于昆虫世界——哺乳动物用尿液和腺体分泌物标记领地，人类在草地上踩出便道，背后都是同一个机制：个体把痕迹留在环境里，环境引导后来者的行为。",
           "audioRef": "audio/tts_action_x-c8WdHM.mp3"
         },
         {
@@ -2960,7 +3117,7 @@
         {
           "id": "action_hxQB0SaN_speech",
           "type": "speech",
-          "text": "这个“抄近道倾向”滑块控制了个体偏离已有路径、探索新方向的意愿。数值越高，个体越容易开辟新路线。",
+          "text": "'抄近道倾向'控制的是行人有多大意愿偏离已有路径、开辟新方向。倾向低，大家都老老实实沿着已有踩痕走；倾向高，就会有人尝试走新路线。",
           "title": "关注探索倾向",
           "audioRef": "audio/tts_action_hxQB0SaN_speech.mp3"
         },
@@ -2978,7 +3135,7 @@
         {
           "id": "action_nlAN1AQ4_speech",
           "type": "speech",
-          "text": "让我们先载入“高效人类便道”场景。此时路径踩踏衰减慢、强化稳定。你会观察到草地上自发涌现出人行便道网络，这是在“走直线”与“沿用旧路”之间达成的折中最优解。",
+          "text": "先看'高效便道'场景。踩踏痕迹衰减慢、强化快。Helbing 在1997年的模型证明，行人会在'抄近路直线走'和'沿着已有踩痕走'之间做折中。最终草地上自发涌现出一个便道网络——没有规划师画过这些路，纯粹是无数人脚投票的结果。",
           "title": "模拟人类便道",
           "audioRef": "audio/tts_action_nlAN1AQ4_speech.mp3"
         },
@@ -2991,7 +3148,7 @@
         {
           "id": "action_0JMzv9fE_speech",
           "type": "speech",
-          "text": "而“衰减率”代表了环境记忆的消退速度。在气味标记或草地踩踏中，如果痕迹衰减过快，信息便无法在群体中有效传递和积累。",
+          "text": "'衰减率'代表环境记忆消退的速度。草地上的踩痕会随着草的再生而消失，气味标记会随时间挥发。衰减太快，痕迹来不及在群体中传递和累积，路就形成不了。",
           "title": "关注衰减率",
           "audioRef": "audio/tts_action_0JMzv9fE_speech.mp3"
         },
@@ -3009,11 +3166,20 @@
         {
           "id": "action_zeHoqFoj_speech",
           "type": "speech",
-          "text": "最后，我们模拟“动物巡逻气味地图”。高强化率与高衰减率并存。同伴在边界和高频路口不断重复标记，从而自发形成清晰、高动态的集体气味领地边界。",
+          "text": "最后模拟'动物巡逻气味地图'。这里高强化率和高衰减率并存——动物频繁地在高访问点（路口、巢穴、领地边界）重复标记。标记密度自然而然地在这些热点集中，形成一张群体共享的动态气味地图。和之前所有案例一样：个体只管局部标记，全局边界自发涌现。",
           "title": "模拟动物标记",
           "audioRef": "audio/tts_action_zeHoqFoj_speech.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "quiz",
@@ -3147,19 +3313,19 @@
         {
           "id": "action_kOvSE-1A",
           "type": "speech",
-          "text": "刚刚我们探讨了高动态的集体气味领地边界，看到个体是如何通过简单的物理标记自发形成复杂集体行为的。顺着这个思路，我们现在来看看一个更深层的问题：在演化史上，原本独来独往的物种，究竟是怎样跨越鸿沟、走向社会性生活的？现在，请大家先看看屏幕上的这四道测试题，检验一下自己对“stigmergy（间接协调）如何作为演化踏脚石”的理解。",
+          "text": "我们刚刚看到个体如何通过简单的环境标记自发形成集体行为。现在来看一个更深层的问题：在演化史上，原本独来独往的物种，是怎样跨过鸿沟、走向社会性生活的？先看看这四道题，检验一下你的理解。",
           "audioRef": "audio/tts_action_kOvSE-1A.mp3"
         },
         {
           "id": "action_MEQuFX1m",
           "type": "speech",
-          "text": "好，我看大家都完成了。我们先来看看前两题。Q1 问为什么蜘蛛或独居蜂能无意识地接力筑巢？答案是 B。这其实是一个绝妙的“认知局限”：它们根本分不清哪些是自己做的，哪些是同类留下的，它们只是对物理线索做出本能反应。这就引出了 Q2，这种机制在演化生物学中被称为“预适应”（答案 A）。意思是说，物种在偶然相遇时，不需要任何复杂的社会契约或语言沟通，仅靠环境媒介就能自发产生协作。这在工程上，就像是极佳的“解耦设计”，每个节点只需要对局部环境状态做出反应，完全不依赖全局通信。",
+          "text": "前两题的核心概念是'预适应'。Q1 正确答案是 B：独居物种之所以能无意识地接力筑巢，是因为它们根本分不清哪些是自己做的、哪些是同类留下的，它们只是对物理线索做出本能反应。论文里提到蜘蛛就是这样的例子。Q2 正确答案是 A：这种机制意味着，如果两个独居个体偶然相遇在同一个地点，不需要任何社会契约或语言沟通，它们就能自发地产生协作。这就是'预适应'的含义——不是有意为之，而是机制本身天然具备协作的潜力。",
           "audioRef": "audio/tts_action_MEQuFX1m.mp3"
         },
         {
           "id": "action_vEgUtgDp",
           "type": "speech",
-          "text": "接着看后两题，Q3 和 Q4 帮我们厘清了从“间接协调”通往“真社会性”的瓶颈。Q3 的正确答案是 BC，Q4 的正确答案是 ACD。大家需要注意，并不是具备了 stigmergy 就必然会演化出真社会性（所以 Q4 的 B 是错的）。要实现这个飞跃，还必须满足两个条件：第一，空间上要能达到局部高种群密度，比如通过归巢机制或者相互吸引力成簇聚集；第二，时间上群体要能维持足够长时间的凝聚，以便享受到协作带来的生存红利。这就像我们设计多智能体系统，不仅要求智能体之间有交互协议，还必须保证系统有足够的节点密度和在线时长，否则涌现效应根本无法稳定维持。",
+          "text": "Q3 和 Q4 帮我们厘清从'能协作'到'真社会性'之间的距离。Q3 正确答案是 B 和 C。注意 A（需要抽象语言）是错的——stigmergy 恰恰不需要语言。真社会性还需要两个条件：第一，种群要能在局部达到足够高的密度，比如有归巢本能或者相互吸引机制，让个体能聚到一起；第二，聚到一起之后要能维持足够长的时间，才能享受到协作带来的收益。Q4 正确答案是 A、C、D。特别注意 B 是错的——光有 stigmergy 并不必然产生真社会性，还必须同时满足上面说的两个条件。",
           "audioRef": "audio/tts_action_vEgUtgDp.mp3"
         },
         {
@@ -3169,7 +3335,16 @@
           "prompt": "大家可以结合前面学过的格点蜂群或数字信息素，思考在算法设计中，我们是否也可以故意“限制”智能体的感知，来获取更好的分布式自组织效果？",
           "agentId": "default-6"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "pbl",
@@ -3464,10 +3639,19 @@
         {
           "id": "action_4hL816A4",
           "type": "speech",
-          "text": "刚刚我们深入探讨了空间局部密度和时间凝聚力对于稳定涌现的关键作用。正如我们在前面第7页、第9页和第11页所解构的那些精彩案例，非直接协同的魔力必须要通过代码实践才能真正体会。现在，是时候把这些理论付诸行动了！我们今天的综合实战项目，就是让大家从零开始，亲手实现一个 Stigmergy 自组织仿真系统。\n\n在这个项目中，大家可以自由选择并扮演以下三个系统方向的“首席架构师”：\n第一，蚂蚁堆排序挑战：重现在第11页学过的，会分类的蚂蚁如何通过局部规则将无序的卵和幼虫进行自发分类与堆叠；\n第二，格点蜂群筑巢：挑战我们在第7页、第8页探讨过的 Lattice Swarm，构建出蜂巢的同心圆自发分层结构；\n第三，信息素最短路径：重温第9页的数字信息素，利用正负反馈机制实现路网的自主寻优。\n\n无论你选择哪一个方向，核心任务都是定义个体的“感知→动作”局部规则，建立环境媒介，并通过设计正反馈与负反馈机制来调参观察系统相变。进阶的同学还可以对比概率规则与确定性规则的涌现效果，并分析为什么没有了中心协调器，你的系统依然能够井然有序。\n\n现在，请大家选定你的研究角色和系统路线，让我们开始动手，在代码中见证秩序的奇妙涌现吧！",
+          "text": "理论学了这么多，现在是动手的时候了。这个项目要你从零开始实现一个 stigmergy 自组织仿真。三个方向任选其一：蚂蚁分拣（第11页的堆排序模型）、格点蜂群筑巢（第7和第8页的 Lattice Swarm）、或者信息素最短路径（第9页的双桥实验）。不管选哪个，核心任务都是一样的：定义个体的'感知→动作'局部规则，实现正反馈和负反馈，然后通过调参观察系统在什么条件下会发生相变——从无序突变为有序。进阶的同学可以对比确定性规则和概率规则的涌现效果，并思考一个关键问题：去掉了中心协调器之后，你的系统为什么仍然能井然有序？",
           "audioRef": "audio/tts_action_4hL816A4.mp3"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     },
     {
       "type": "slide",
@@ -3663,7 +3847,7 @@
         {
           "id": "action_K67NAr06",
           "type": "speech",
-          "text": "同学们，在完成了前面所有的理论学习与动手实践之后，我们这门课也终于迎来了最核心的收官篇章：从生物机制到人工群体智能的真正尾声。",
+          "text": "同学们，走到这里，我们的旅程真的要画上句号了。",
           "audioRef": "audio/tts_action_K67NAr06.mp3"
         },
         {
@@ -3674,7 +3858,7 @@
         {
           "id": "action_Yh9uSRp1",
           "type": "speech",
-          "text": "回顾我们整堂课的旅程，我们首先立足于生物学的基石。从最初探索超个体的未解之谜，到深入剖析 Grassé 提出的 Stigmergy 假说。我们共同见证了白蚁筑拱的定量相变、胡蜂筑巢的定性规则，再到蚂蚁垃圾分类、蜂巢同心圆分布、以及超越昆虫的气味地标和人类踩出的小路。这其中的核心信条只有一个：个体把痕迹写进环境，环境反过来协调个体，从而极为优雅地化解了‘协同悖论’。",
+          "text": "回顾整门课的脉络：我们从'协同悖论'出发——微观上各干各的、宏观上整齐划一，这个矛盾怎么解释？从超个体论和独立个体论的百年争论，到 Grassé 提出 stigmergy 打破僵局。然后我们亲手体验了两大类机制：定量协同（信息素浓度驱动的白蚁筑柱、蚁群最短路径）和定性协同（纸蜂按邻墙数建造、格点蜂群的 if-then 微规则）。再往后扩展到蚂蚁分拣、蜂巢同心圆、哺乳动物气味地图、人类踩出的小路。贯穿全程的核心信条只有一个：个体把痕迹写进环境，环境反过来引导个体，从而优雅地化解了协同悖论。",
           "audioRef": "audio/tts_action_Yh9uSRp1.mp3"
         },
         {
@@ -3685,7 +3869,7 @@
         {
           "id": "action_TS3I7VL-",
           "type": "speech",
-          "text": "正如著名学者 Theraulaz 曾做出的伟大预言：Stigmergy 的巨大潜力在生物学界仍远未被挖掘，而‘人工科学’会更乐于拥抱它。如今，我们正在兑现这一预言。从经典的蚁群优化算法、群体机器人系统，到多智能体路径规划，乃至我们人类社会的大规模开源协作，Stigmergy 已经拥有了无数工程化的身躯。",
+          "text": "在这篇论文的结尾，作者 Theraulaz 和 Bonabeau 写下了一个预言：stigmergy 的潜力在生物学界仍远未被挖掘，而'人工科学'——也就是计算机科学和工程学——会更乐于拥抱它。二十多年过去了，这个预言正在被不断兑现。蚁群优化算法、群体机器人、多智能体路径规划、甚至人类社会的大规模开源协作——Git 和 GitHub 的'分支-合并'模式，本质上就是通过共享环境（代码仓库）进行的非直接协同。",
           "audioRef": "audio/tts_action_TS3I7VL-.mp3"
         },
         {
@@ -3696,7 +3880,7 @@
         {
           "id": "action_NA8cy3o-",
           "type": "speech",
-          "text": "在课程的最后，我想留给未来的系统架构师们一个终极思考。在这个充斥着分布式、去中心化需求的时代，我们习惯了用‘中心协调器’来解决问题，但这往往伴随着单点故障和性能瓶颈。那么，在你们未来设计或正在维护的系统里，有哪些‘中心协调器’，是可以被换成‘环境媒介’的呢？",
+          "text": "最后留给大家一个开放思考。在这个分布式、去中心化需求越来越多的时代，我们习惯了用'中心服务器'、'主节点'、'调度器'来解决协调问题，但这往往带来单点故障和性能瓶颈。那么，在你未来设计或正在维护的系统里，有哪些'中心协调器'其实可以换成'环境媒介'呢？",
           "audioRef": "audio/tts_action_NA8cy3o-.mp3"
         },
         {
@@ -3706,7 +3890,16 @@
           "prompt": "大家可以结合分布式系统、微服务设计、或者日常的协作工具，谈谈自己的想法。",
           "agentId": "default-6"
         }
-      ]
+      ],
+      "multiAgent": {
+        "enabled": true,
+        "agentIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
     }
   ],
   "mediaIndex": {
@@ -4070,6 +4263,426 @@
       "voice": "echo"
     },
     "audio/tts_action_NA8cy3o-.mp3": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_210DSNwJ": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_FGjkKKp2": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_JxMgYkFu": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_aeQOac68": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_1r2WxGpu": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_GgqSIeIa": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_43Ah-bx2": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_3kcGVRHg_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_82cX8dbq_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_mak4vH-w_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_AT12rxdY_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_bIR3YfEw_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_Rl0gcbdY": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_6BJ6E00g_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_P36sM2DP_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_pmbxDvQG_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_5Qp3JRR9_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_0DwAmhhq_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_UZgDk4TR": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_r2X5kufi": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_HGkdbGex": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_SSzi1o6N": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_pG49fMvO": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_NBKJl6c3": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_33vVA5El": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_1zeFUhSH": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_VgKTNihV": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_heZLiKfb_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_emlIT_AF_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_0GBH_bxs_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_TnKPLleA_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_baoILcwp_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_EMFM02d_": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_vx7rFshw": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_E7SmdSYV_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_rSsddb1r_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_Rj7HL1O7_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_cIfP2fR5_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_N9domIV1": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_cdZpoOIF": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_fIDbct8q_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_ehcrESCu_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_rGjm7QAE_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_fIeGUFt7_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_7nANcyWh": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_xFDFTBNJ_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_KuNnxhAL_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_TSaX2mB5_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_h7jN7CPF_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_1VQddPBL": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_lPuuwqq8": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_yoLcnQUa_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_jli1dTX7_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_WM388SLE_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_imoVkH8A_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_A2uwDnSE_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_2vv_5cPl": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_Hym-xR4P": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_lyfmJNeB": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_mSDDjbl9": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_qtVFBz6G": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_1SjtPydJ_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_hpd1EYFu_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_P71VnzOX_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_anpDN5tX_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_SwKau49k": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_p7I4y79K_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_u0vpR6Kh_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_y1inkPDJ_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_-DiB1qSw_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_stZVz4fb_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_x-c8WdHM": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_hxQB0SaN_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_nlAN1AQ4_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_0JMzv9fE_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_zeHoqFoj_speech": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_kOvSE-1A": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_MEQuFX1m": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_vEgUtgDp": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_4hL816A4": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_K67NAr06": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_Yh9uSRp1": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_TS3I7VL-": {
+      "type": "audio",
+      "format": "mp3",
+      "voice": "echo"
+    },
+    "tts_action_NA8cy3o-": {
       "type": "audio",
       "format": "mp3",
       "voice": "echo"
