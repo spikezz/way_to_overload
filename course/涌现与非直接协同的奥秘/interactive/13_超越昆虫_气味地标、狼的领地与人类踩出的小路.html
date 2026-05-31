@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>环境介导协同 (Stigmergy) 交互模拟</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom track and thumb styles for sliders to ensure 44px touch targets */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+      height: 24px;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      background: #334155;
+      border-radius: 9999px;
+      height: 8px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -8px;
+      background-color: #8b5cf6;
+      border-radius: 50%;
+      height: 24px;
+      width: 24px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background-color: #a78bfa;
+      transform: scale(1.1);
+    }
+    input[type="range"]:active::-webkit-slider-thumb {
+      background-color: #7c3aed;
+    }
+    /* Simple custom scrollbar for controls */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    /* Touch actions prevention */
+    .touch-manipulation {
+      touch-action: manipulation;
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-900 text-slate-100 flex flex-col md:flex-row h-screen w-screen overflow-hidden select-none font-sans antialiased">
+
+  <!-- EMBEDDED WIDGET CONFIGURATION -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "stigmergy_active_walker",
+    "description": "Helbing草地主动行走模型与动物气味标记的多代协同机制模拟器",
+    "variables": [
+      { "name": "spawnRate", "label": "生成率", "min": 0.1, "max": 1.0, "default": 0.5, "unit": "" },
+      { "name": "reinforceRate", "label": "强化率", "min": 0.05, "max": 0.5, "default": 0.2, "unit": "" },
+      { "name": "decayRate", "label": "衰减率", "min": 0.001, "max": 0.05, "default": 0.01, "unit": "" },
+      { "name": "exploration", "label": "抄近道倾向", "min": 0.0, "max": 1.0, "default": 0.4, "unit": "" }
+    ],
+    "presets": [
+      {
+        "name": "高效人类便道 (Shortcut Emergence)",
+        "variables": { "spawnRate": 0.6, "reinforceRate": 0.25, "decayRate": 0.005, "exploration": 0.35 }
+      },
+      {
+        "name": "动物巡逻气味地图 (Animal Territory)",
+        "variables": { "spawnRate": 0.4, "reinforceRate": 0.4, "decayRate": 0.015, "exploration": 0.2 }
+      },
+      {
+        "name": "混沌探索 (Chaos & Decay)",
+        "variables": { "spawnRate": 0.8, "reinforceRate": 0.05, "decayRate": 0.04, "exploration": 0.9 }
+      }
+    ]
+  }
+  </script>
+
+  <!-- LEFT PANEL: CONTROLS & DESCRIPTIONS -->
+  <div id="controls-panel" class="w-full md:w-[420px] flex flex-col shrink-0 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950 overflow-y-auto max-h-[45vh] md:max-h-screen z-10">
+    
+    <!-- Title and Badges -->
+    <div class="p-5 border-b border-slate-800 shrink-0">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="px-2 py-0.5 text-xs font-semibold bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded">跨物种协同</span>
+        <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">环境介导 (Stigmergy)</span>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-violet-400 to-indigo-300 bg-clip-text text-transparent">
+        环境介导协同模拟器
+      </h1>
+      <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+        <strong>Stigmergy (环境介导协同)</strong>：个体在环境中留下标记，改变环境，而改变后的环境又指引后来者的行为。本模拟器展示了<b>人类践踏出便道</b>与<b>动物气味标记</b>是如何在没有集中规划下涌现出全局最优路径网的。
+      </p>
+    </div>
+
+    <!-- Mode Selector Tab -->
+    <div class="px-5 pt-4 pb-2 shrink-0">
+      <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">切换仿真机制</label>
+      <div class="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-lg border border-slate-800">
+        <button id="mode-grass-btn" class="py-2 text-xs font-medium rounded-md transition-all bg-violet-600 text-white shadow-md">
+          🚶‍♂️ 人类踩径 (Helbing)
+        </button>
+        <button id="mode-scent-btn" class="py-2 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white">
+          🐺 动物气味标记
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Controls -->
+    <div class="p-5 flex-1 space-y-5">
+      
+      <!-- Sliders Group -->
+      <div class="space-y-4">
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-medium text-slate-300" id="spawnRate-label">生成率 (密度)</span>
+            <span class="text-xs font-mono text-violet-400" id="spawnRate-display">0.5</span>
+          </div>
+          <input type="range" id="spawnRate-slider" class="w-full" min="0.1" max="1.0" step="0.05" value="0.5">
+          <p class="text-[10px] text-slate-500 mt-0.5">控制单位时间内出发前往目的地的行人/动物数量。</p>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-medium text-slate-300" id="reinforceRate-label">踩踏/气味强化率</span>
+            <span class="text-xs font-mono text-violet-400" id="reinforceRate-display">0.2</span>
+          </div>
+          <input type="range" id="reinforceRate-slider" class="w-full" min="0.05" max="0.5" step="0.01" value="0.2">
+          <p class="text-[10px] text-slate-500 mt-0.5">单次经过时，对地面踩踏痕迹或遗留气味的加深程度。</p>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-medium text-slate-300" id="decayRate-label">环境自然衰减率</span>
+            <span class="text-xs font-mono text-violet-400" id="decayRate-display">0.01</span>
+          </div>
+          <input type="range" id="decayRate-slider" class="w-full" min="0.001" max="0.05" step="0.001" value="0.01">
+          <p class="text-[10px] text-slate-500 mt-0.5">痕迹随时间恢复（草地重新生长或气味自然挥发）的速度。</p>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-medium text-slate-300" id="exploration-label">抄近路 vs 沿用已有路径</span>
+            <span class="text-xs font-mono text-violet-400" id="exploration-display">0.40</span>
+          </div>
+          <input type="range" id="exploration-slider" class="w-full" min="0.0" max="1.0" step="0.05" value="0.40">
+          <p class="text-[10px] text-slate-500 mt-0.5">高：直奔目的地（抄近道）；低：严格顺着已有踩痕/气味走。</p>
+        </div>
+      </div>
+
+      <!-- Preset Scenarios -->
+      <div class="pt-2">
+        <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">预设应用场景</span>
+        <div class="grid grid-cols-1 gap-1.5" id="presets-container">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Actions Footer -->
+    <div class="p-5 border-t border-slate-800 bg-slate-950 sticky bottom-0 flex gap-2">
+      <button id="start-btn" class="flex-1 py-3 px-4 rounded-lg bg-violet-600 hover:bg-violet-500 active:bg-violet-700 font-medium text-sm transition-all shadow-lg flex items-center justify-center gap-2 touch-manipulation">
+        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span id="start-btn-text">启动模拟</span>
+      </button>
+      <button id="reset-btn" class="py-3 px-4 rounded-lg border border-slate-700 hover:bg-slate-800 active:bg-slate-900 text-slate-300 text-sm font-medium transition-all touch-manipulation">
+        重置环境
+      </button>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL: SIMULATION CANVAS -->
+  <div class="flex-1 relative flex flex-col min-h-[300px] h-full">
+    
+    <!-- CANVAS -->
+    <div class="flex-1 relative overflow-hidden bg-slate-900 cursor-crosshair">
+      <canvas id="simCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+      
+      <!-- Live HUD Overlays (Interactive/Floating) -->
+      <div class="absolute top-4 left-4 p-3 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-lg text-xs font-mono pointer-events-none space-y-1">
+        <div class="text-slate-400 flex justify-between gap-4"><span>状态:</span><span id="hud-status" class="text-emerald-400 font-bold">已停止</span></div>
+        <div class="text-slate-400 flex justify-between gap-4"><span>活动群落:</span><span id="hud-agents" class="text-violet-300">0</span></div>
+        <div class="text-slate-400 flex justify-between gap-4"><span>协同度指数:</span><span id="hud-order" class="text-cyan-400">0.0%</span></div>
+        <div class="text-slate-400 flex justify-between gap-4"><span>历史步数:</span><span id="hud-steps" class="text-amber-400">0</span></div>
+      </div>
+
+      <!-- Quick Tips Floating Overlay -->
+      <div class="absolute bottom-4 right-4 max-w-[280px] p-3 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-lg text-[10px] text-slate-400 leading-relaxed pointer-events-none">
+        <div class="font-semibold text-slate-200 mb-1 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>
+          环境自组织提示：
+        </div>
+        中间设有无法通行的“障碍物”。观察群体如何通过在“最短路径（直线）”与“跟随已有痕迹”之间妥协，自然环绕障碍物踩出一条高效的自发路径。
+      </div>
+    </div>
+
+  </div>
+
+  <!-- INLINE CORE LOGIC -->
+  <script>
+    // State machine
+    const state = {
+      running: false,
+      paused: false,
+      ended: false,
+      mode: 'grass', // 'grass' or 'scent'
+      spawnRate: 0.5,
+      reinforceRate: 0.2,
+      decayRate: 0.01,
+      exploration: 0.40,
+      steps: 0
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('start-btn');
+    const startBtnText = document.getElementById('start-btn-text');
+    const resetBtn = document.getElementById('reset-btn');
+    
+    const spawnRateSlider = document.getElementById('spawnRate-slider');
+    const reinforceRateSlider = document.getElementById('reinforce-slider'); // Wait, check matching with original schema
+    
+    // Wire custom UI triggers
+    const sliders = {
+      spawnRate: document.getElementById('spawnRate-slider'),
+      reinforceRate: document.getElementById('reinforceRate-slider'),
+      decayRate: document.getElementById('decayRate-slider'),
+      exploration: document.getElementById('exploration-slider')
+    };
+
+    const displays = {
+      spawnRate: document.getElementById('spawnRate-display'),
+      reinforceRate: document.getElementById('reinforceRate-display'),
+      decayRate: document.getElementById('decayRate-display'),
+      exploration: document.getElementById('exploration-display')
+    };
+
+    const hudStatus = document.getElementById('hud-status');
+    const hudAgents = document.getElementById('hud-agents');
+    const hudOrder = document.getElementById('hud-order');
+    const hudSteps = document.getElementById('hud-steps');
+
+    const modeGrassBtn = document.getElementById('mode-grass-btn');
+    const modeScentBtn = document.getElementById('mode-scent-btn');
+
+    // Grid details for Trail Network
+    const gridRes = 8; // Size of trail cell in pixels
+    let gridCols = 0;
+    let gridRows = 0;
+    let trailGrid = []; // 2D grid storing decayable values (0 to 1)
+
+    // Agents
+    let agents = [];
+    
+    // Spawn points and Destinations
+    // Let's establish 4 key gates/points around an obstacle in the center
+    let spawnPoints = [];
+    let destinations = [];
+    let obstacles = [];
+
+    // Setup Presets
+    const presets = [
+      {
+        name: "自然涌现：草地捷径",
+        mode: "grass",
+        desc: "高密度踩踏，极低衰减。直角绿地中的人类在抄近道意图下，自发踩出完美的弧形对角线。",
+        variables: { "spawnRate": 0.8, "reinforceRate": 0.25, "decayRate": 0.003, "exploration": 0.3 }
+      },
+      {
+        name: "生态系统：狼群气味网",
+        mode: "scent",
+        desc: "中等寿命气味。动物围绕边界和水源巡逻，气味累积形成清晰的领地和行进廊道结构。",
+        variables: { "spawnRate": 0.4, "reinforceRate": 0.35, "decayRate": 0.012, "exploration": 0.15 }
+      },
+      {
+        name: "过度衰退与低频踩踏",
+        mode: "grass",
+        desc: "衰减过快而践踏少，信息在环境中的驻留不足以影响个体，无法形成自组织路径。",
+        variables: { "spawnRate": 0.2, "reinforceRate": 0.1, "decayRate": 0.03, "exploration": 0.8 }
+      }
+    ];
+
+    // Build presets UI
+    const presetsContainer = document.getElementById('presets-container');
+    presets.forEach((preset, idx) => {
+      const btn = document.createElement('button');
+      btn.className = "w-full p-2.5 text-left rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all text-xs group touch-manipulation";
+      btn.innerHTML = `
+        <div class="flex justify-between items-center font-semibold text-slate-200 group-hover:text-violet-400">
+          <span>${preset.name}</span>
+          <span class="text-[10px] px-1.5 py-0.2 bg-slate-800 rounded text-slate-400">${preset.mode === 'grass' ? '行人' : '动物'}</span>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1 leading-normal">${preset.desc}</p>
+      `;
+      btn.onclick = () => applyPreset(preset);
+      presetsContainer.appendChild(btn);
+    });
+
+    // Handle Window Resizing
+    function initCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      
+      // Setup Obstacles, Gates relative to size
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      
+      obstacles = [
+        { x: cx - 60, y: cy - 60, w: 120, h: 120, radius: 15 } // Central Obstacle
+      ];
+
+      // Setup Spawn Points / Hubs (Left-to-Right and Top-to-Bottom flows)
+      spawnPoints = [
+        { x: 50, y: 80, label: "入口 A", color: "#60a5fa" },
+        { x: 50, y: canvas.height - 80, label: "入口 B", color: "#34d399" },
+        { x: canvas.width - 50, y: 80, label: "出口 C", color: "#f87171" },
+        { x: canvas.width - 50, y: canvas.height - 80, label: "出口 D", color: "#fbbf24" }
+      ];
+
+      // Setup/Reset Trail Grid
+      gridCols = Math.ceil(canvas.width / gridRes);
+      gridRows = Math.ceil(canvas.height / gridRes);
+      trailGrid = Array(gridCols).fill(0).map(() => Array(gridRows).fill(0));
+    }
+
+    // Agent class
+    class Agent {
+      constructor() {
+        // Randomly choose departure and destination
+        const startIdx = Math.floor(Math.random() * spawnPoints.length);
+        let destIdx = Math.floor(Math.random() * spawnPoints.length);
+        while (destIdx === startIdx) {
+          destIdx = Math.floor(Math.random() * spawnPoints.length);
+        }
+        
+        this.spawn = spawnPoints[startIdx];
+        this.dest = spawnPoints[destIdx];
+        
+        this.x = this.spawn.x + (Math.random() * 20 - 10);
+        this.y = this.spawn.y + (Math.random() * 20 - 10);
+        this.speed = 1.8 + Math.random() * 0.8;
+        this.radius = state.mode === 'grass' ? 3.5 : 4;
+        this.finished = false;
+        
+        // Custom visual phase to give organic movement
+        this.phase = Math.random() * Math.PI * 2;
+      }
+
+      update() {
+        if (this.finished) return;
+
+        // Calculate direction to destination
+        const dx = this.dest.x - this.x;
+        const dy = this.dest.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Arrived?
+        if (dist < 15) {
+          this.finished = true;
+          return;
+        }
+
+        // Base angle to destination
+        let angleToTarget = Math.atan2(dy, dx);
+
+        // Environmental sensing: Stigmergy evaluation
+        // Look ahead in 3 directions: direct target, target - 40 deg, target + 40 deg
+        const anglesToEvaluate = [
+          angleToTarget,
+          angleToTarget - 0.7,
+          angleToTarget + 0.7
+        ];
+
+        let bestScore = -Infinity;
+        let chosenAngle = angleToTarget;
+        const senseDist = 22; // How far ahead to sense
+
+        anglesToEvaluate.forEach(angle => {
+          // Sense coordinates
+          const sx = this.x + Math.cos(angle) * senseDist;
+          const sy = this.y + Math.sin(angle) * senseDist;
+
+          // Check grid bounds and collision with obstacles
+          if (sx > 0 && sx < canvas.width && sy > 0 && sy < canvas.height && !isInsideObstacles(sx, sy)) {
+            const gx = Math.floor(sx / gridRes);
+            const gy = Math.floor(sy / gridRes);
+            const trailValue = (trailGrid[gx] && trailGrid[gx][gy]) ? trailGrid[gx][gy] : 0;
+
+            // Decision Utility Function: Balance of "direct path" vs "trail follow"
+            // High exploration = heavy weight on directly heading to target
+            // Low exploration = heavy weight on taking trail value
+            const targetScore = Math.cos(angle - angleToTarget); // Cosine similarity (ranges from 0.7 to 1)
+            const score = (1 - state.exploration) * trailValue * 3 + state.exploration * targetScore;
+
+            if (score > bestScore) {
+              bestScore = score;
+              chosenAngle = angle;
+            }
+          }
+        });
+
+        // Add small organic noise to movement
+        this.phase += 0.2;
+        chosenAngle += Math.sin(this.phase) * 0.12;
+
+        // Vector Step with collision prediction
+        let stepX = Math.cos(chosenAngle) * this.speed;
+        let stepY = Math.sin(chosenAngle) * this.speed;
+
+        // Collision recovery: if step hits obstacle, slide around
+        if (isInsideObstacles(this.x + stepX, this.y + stepY)) {
+          // Try alternative side vectors
+          const slideAngles = [chosenAngle + Math.PI / 2, chosenAngle - Math.PI / 2];
+          let slid = false;
+          for (const sAngle of slideAngles) {
+            const sX = Math.cos(sAngle) * this.speed;
+            const sY = Math.sin(sAngle) * this.speed;
+            if (!isInsideObstacles(this.x + sX, this.y + sY)) {
+              stepX = sX;
+              stepY = sY;
+              slid = true;
+              break;
+            }
+          }
+          if (!slid) {
+            // Stuck: wait or wander randomly
+            stepX = (Math.random() - 0.5) * 1;
+            stepY = (Math.random() - 0.5) * 1;
+          }
+        }
+
+        // Apply Step
+        this.x += stepX;
+        this.y += stepY;
+
+        // Clamp inside Canvas
+        this.x = Math.max(0, Math.min(canvas.width, this.x));
+        this.y = Math.max(0, Math.min(canvas.height, this.y));
+
+        // LEAVE TRAIL (Stigmergic Reinforcement)
+        const gx = Math.floor(this.x / gridRes);
+        const gy = Math.floor(this.y / gridRes);
+        if (gx >= 0 && gx < gridCols && gy >= 0 && gy < gridRows) {
+          trailGrid[gx][gy] = Math.min(1.0, trailGrid[gx][gy] + state.reinforceRate);
+        }
+      }
+
+      draw() {
+        if (this.finished) return;
+
+        ctx.save();
+        if (state.mode === 'grass') {
+          // Pedestrian: simple body & shadow
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#f8fafc'; // Crisp off-white clothes
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = 'rgba(0,0,0,0.4)';
+          ctx.fill();
+          
+          // Small bag or direction dot
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, 1.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#4f46e5';
+          ctx.fill();
+        } else {
+          // Animal: glowing active predator/scout
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#06b6d4'; // Cyan neon
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = '#06b6d4';
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    // Obstacle check helper
+    function isInsideObstacles(x, y) {
+      for (const obs of obstacles) {
+        if (x >= obs.x && x <= obs.x + obs.w && y >= obs.y && y <= obs.y + obs.h) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Apply Presets
+    function applyPreset(preset) {
+      // Toggle mode if preset requires it
+      if (preset.mode) {
+        setMode(preset.mode);
+      }
+
+      // Update state and UI inputs
+      Object.entries(preset.variables).forEach(([key, value]) => {
+        state[key] = value;
+        const slider = sliders[key];
+        if (slider) {
+          slider.value = value;
+          slider.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+
+      // Clear current simulation state to refresh cleanly
+      resetSimulation(true);
+      startSimulation();
+    }
+
+    // Set Environment Modes (Grass VS Wilderness Scent)
+    function setMode(mode) {
+      state.mode = mode;
+      if (mode === 'grass') {
+        modeGrassBtn.className = "py-2 text-xs font-medium rounded-md transition-all bg-violet-600 text-white shadow-md";
+        modeScentBtn.className = "py-2 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white";
+        // Update label text contextually
+        document.getElementById('reinforceRate-label').textContent = "践踏踩痕强化率";
+        document.getElementById('decayRate-label').textContent = "草地自愈恢复率";
+      } else {
+        modeScentBtn.className = "py-2 text-xs font-medium rounded-md transition-all bg-violet-600 text-white shadow-md";
+        modeGrassBtn.className = "py-2 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white";
+        document.getElementById('reinforceRate-label').textContent = "气味释放强化率";
+        document.getElementById('decayRate-label').textContent = "气味自然挥发率";
+      }
+      resetSimulation();
+    }
+
+    modeGrassBtn.onclick = () => setMode('grass');
+    modeScentBtn.onclick = () => setMode('scent');
+
+    // UI Sliders Input Listeners
+    Object.keys(sliders).forEach(key => {
+      sliders[key].addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        state[key] = value;
+        displays[key].textContent = value.toFixed(key === 'decayRate' ? 3 : 2);
+      });
+    });
+
+    // Main Engine Loop
+    function step() {
+      if (!state.running || state.paused) return;
+
+      state.steps++;
+
+      // 1. Trail Decay & Diffusion (Blur effect for realism)
+      const nextTrailGrid = Array(gridCols).fill(0).map(() => Array(gridRows).fill(0));
+      const dRate = state.decayRate;
+
+      for (let x = 0; x < gridCols; x++) {
+        for (let y = 0; y < gridRows; y++) {
+          let val = trailGrid[x][y];
+          if (val > 0) {
+            // Diffusion - average with neighbors to organically expand/soften path edges
+            let neighborsSum = val;
+            let count = 1;
+
+            if (x > 0) { neighborsSum += trailGrid[x-1][y]; count++; }
+            if (x < gridCols - 1) { neighborsSum += trailGrid[x+1][y]; count++; }
+            if (y > 0) { neighborsSum += trailGrid[x][y-1]; count++; }
+            if (y < gridRows - 1) { neighborsSum += trailGrid[x][y+1]; count++; }
+
+            const avg = neighborsSum / count;
+            
+            // Apply decay
+            nextTrailGrid[x][y] = Math.max(0, avg - dRate);
+          }
+        }
+      }
+      trailGrid = nextTrailGrid;
+
+      // 2. Spawn Agents based on dynamic rate
+      if (Math.random() < state.spawnRate) {
+        agents.push(new Agent());
+      }
+
+      // 3. Update Agents
+      agents.forEach(agent => agent.update());
+
+      // Filter out completed ones
+      agents = agents.filter(agent => !agent.finished);
+
+      // 4. Update stats calculations
+      if (state.steps % 10 === 0) {
+        hudSteps.textContent = state.steps;
+        hudAgents.textContent = agents.length;
+        
+        // Calculate Order/Stigmergy Index based on trail entropy/strength
+        let totalActiveCells = 0;
+        let cellIntensitySum = 0;
+        for (let x = 0; x < gridCols; x++) {
+          for (let y = 0; y < gridRows; y++) {
+            if (trailGrid[x][y] > 0.15) {
+              totalActiveCells++;
+              cellIntensitySum += trailGrid[x][y];
+            }
+          }
+        }
+        // Normalized metric showing path structural strength
+        const stigmergyIndex = Math.min(100, (cellIntensitySum / (gridCols * gridRows * 0.04)) * 100);
+        hudOrder.textContent = stigmergyIndex.toFixed(1) + "%";
+      }
+    }
+
+    // Core Drawing
+    function draw() {
+      // Background colors per environment mode
+      if (state.mode === 'grass') {
+        // Natural lush green field
+        ctx.fillStyle = '#1e3a1e'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Render Grass Texture (slightly stylized pattern)
+        ctx.fillStyle = '#244524';
+        for (let i = 0; i < canvas.width; i += 32) {
+          ctx.fillRect(i, 0, 1, canvas.height);
+        }
+        for (let j = 0; j < canvas.height; j += 32) {
+          ctx.fillRect(0, j, canvas.width, 1);
+        }
+
+        // Render Mud/Desire trails
+        ctx.fillStyle = 'rgba(109, 76, 65, 0.45)'; // Soil/Mud brown
+        for (let x = 0; x < gridCols; x++) {
+          for (let y = 0; y < gridRows; y++) {
+            const intensity = trailGrid[x][y];
+            if (intensity > 0.01) {
+              ctx.globalAlpha = intensity;
+              ctx.fillRect(x * gridRes, y * gridRes, gridRes, gridRes);
+            }
+          }
+        }
+        ctx.globalAlpha = 1.0;
+
+      } else {
+        // Wilderness Scent Trail (Dark, high contrast cyberpunk neon overlay style)
+        ctx.fillStyle = '#0f172a'; // Deep Navy
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw digital grid guides
+        ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.width; i += 40) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        }
+        for (let j = 0; j < canvas.height; j += 40) {
+          ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+        }
+
+        // Render Glowing Scent Overlay (Blend modes for vibrant stigmergic overlay)
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        for (let x = 0; x < gridCols; x++) {
+          for (let y = 0; y < gridRows; y++) {
+            const intensity = trailGrid[x][y];
+            if (intensity > 0.01) {
+              ctx.globalAlpha = intensity * 0.85;
+              ctx.fillStyle = `rgba(168, 85, 247, ${0.4 + intensity * 0.6})`; // Glowing purple
+              ctx.fillRect(x * gridRes, y * gridRes, gridRes, gridRes);
+            }
+          }
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Draw Gates (Spawn Points / Targets)
+      spawnPoints.forEach(gate => {
+        ctx.beginPath();
+        ctx.arc(gate.x, gate.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = gate.color;
+        ctx.globalAlpha = 0.25;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(gate.x, gate.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = gate.color;
+        ctx.globalAlpha = 1.0;
+        ctx.fill();
+
+        // Label
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(gate.label, gate.x, gate.y - 18);
+      });
+
+      // Draw Obstacles (Trees or Paved Stones)
+      obstacles.forEach(obs => {
+        ctx.save();
+        if (state.mode === 'grass') {
+          // Beautiful brick paved courtyard obstacle
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+          
+          // Internal lines
+          ctx.fillStyle = '#334155';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText("未铺路绿草区", obs.x + obs.w/2, obs.y + obs.h/2 + 4);
+        } else {
+          // Cyber style digital shielding wall
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+          
+          // Center label
+          ctx.fillStyle = '#06b6d4';
+          ctx.font = '10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText("[ 物理障碍区 ]", obs.x + obs.w/2, obs.y + obs.h/2 + 4);
+        }
+        ctx.restore();
+      });
+
+      // Draw active agents
+      agents.forEach(agent => agent.draw());
+    }
+
+    // Animation Loop
+    function render() {
+      step();
+      draw();
+      requestAnimationFrame(render);
+    }
+
+    // Controls Action - Play/Pause
+    function toggleSimulation() {
+      if (state.ended) {
+        resetSimulation();
+      }
+
+      if (state.running) {
+        state.running = false;
+        state.paused = true;
+        startBtnText.textContent = "继续模拟";
+        startBtn.className = "flex-1 py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 font-medium text-sm transition-all shadow-lg flex items-center justify-center gap-2";
+        hudStatus.textContent = "已暂停";
+        hudStatus.className = "text-amber-400 font-bold animate-pulse";
+      } else {
+        startSimulation();
+      }
+    }
+
+    function startSimulation() {
+      state.running = true;
+      state.paused = false;
+      startBtnText.textContent = "暂停模拟";
+      startBtn.className = "flex-1 py-3 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 active:bg-rose-700 font-medium text-sm transition-all shadow-lg flex items-center justify-center gap-2";
+      hudStatus.textContent = "运行中";
+      hudStatus.className = "text-emerald-400 font-bold";
+    }
+
+    function resetSimulation(keepSettings = false) {
+      state.running = false;
+      state.paused = false;
+      state.ended = false;
+      state.steps = 0;
+      
+      agents = [];
+      initCanvas(); // Triggers grid regeneration
+
+      startBtnText.textContent = "启动模拟";
+      startBtn.className = "flex-1 py-3 px-4 rounded-lg bg-violet-600 hover:bg-violet-500 active:bg-violet-700 font-medium text-sm transition-all shadow-lg flex items-center justify-center gap-2";
+      hudStatus.textContent = "已就绪";
+      hudStatus.className = "text-blue-400 font-bold";
+      hudSteps.textContent = "0";
+      hudAgents.textContent = "0";
+      hudOrder.textContent = "0.0%";
+    }
+
+    startBtn.onclick = toggleSimulation;
+    resetBtn.onclick = () => resetSimulation(false);
+
+    // Setup Environment initially
+    window.addEventListener('resize', initCanvas);
+    initCanvas();
+    
+    // Set default preset scenario to kickstart beautifully
+    applyPreset(presets[0]);
+    
+    // Start Render Animation
+    render();
+
+    // Hotkey handler
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleSimulation();
+      } else if (e.code === 'KeyR') {
+        e.preventDefault();
+        resetSimulation();
+      }
+    });
+
+    // TEACHER ACTIONS MESSAGE LISTENER
+    window.addEventListener('message', function(event) {
+      const { type, target, state: incomingState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (incomingState) {
+            Object.entries(incomingState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              // Specific mode setter support via widget API
+              if (key === 'mode' && (value === 'grass' || value === 'scent')) {
+                setMode(value);
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(139, 92, 246, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(139,92,246,0.95); color:white; padding:8px 12px; border-radius:8px; font-size:14px; z-index:1000; animation:fadeIn 0.3s; pointer-events:none;';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Dynamic style additions for annotation/highlights
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse-highlight {
+        0%, 100% { outline-color: rgba(139, 92, 246, 0.8); }
+        50% { outline-color: rgba(139, 92, 246, 0.4); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自组织堆排序模拟 (Deneubourg 蚂蚁模型)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Custom slider styles for better mobile touch targets */
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.2);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border: 0;
+      border-radius: 50%;
+      background: #8b5cf6;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    input[type="range"]::-moz-range-thumb:active {
+      transform: scale(1.2);
+    }
+    /* Touch action utility */
+    .touch-manipulation {
+      touch-action: manipulation;
+    }
+    /* Grid background effect */
+    .grid-bg {
+      background-size: 20px 20px;
+      background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col md:flex-row overflow-x-hidden selection:bg-violet-500 selection:text-white">
+
+  <!-- Widget Configuration (JSON) -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "self_organized_sorting",
+    "description": "基于 Deneubourg 模型展示蚂蚁如何通过局部感知和简单的‘拾起-放下’概率规则，在没有全局指挥的情况下对卵、幼虫和茧进行完美的分类堆放。",
+    "variables": [
+      { "name": "k1", "label": "拾起阈值 (k1)", "min": 0.01, "max": 0.5, "default": 0.1, "unit": "" },
+      { "name": "k2", "label": "放下阈值 (k2)", "min": 0.01, "max": 0.5, "default": 0.3, "unit": "" },
+      { "name": "radius", "label": "感知半径", "min": 1, "max": 4, "default": 2, "unit": "格" },
+      { "name": "types", "label": "物体类别数", "min": 1, "max": 3, "default": 3, "unit": "类" },
+      { "name": "antCount", "label": "蚂蚁数量", "min": 10, "max": 200, "default": 80, "unit": "只" },
+      { "name": "speed", "label": "演化速度", "min": 1, "max": 200, "default": 50, "unit": "x" }
+    ],
+    "presets": [
+      {
+        "name": "经典三色分拣",
+        "variables": { "k1": 0.1, "k2": 0.3, "radius": 2, "types": 3, "antCount": 80, "speed": 50 }
+      },
+      {
+        "name": "高感度快速合并",
+        "variables": { "k1": 0.05, "k2": 0.4, "radius": 3, "types": 2, "antCount": 100, "speed": 80 }
+      },
+      {
+        "name": "局限视野(小堆化)",
+        "variables": { "k1": 0.15, "k2": 0.25, "radius": 1, "types": 3, "antCount": 60, "speed": 40 }
+      }
+    ]
+  }
+  </script>
+
+  <!-- LEFT: Sidebar Control Panel -->
+  <aside id="controls" class="w-full md:w-[380px] shrink-0 bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col max-h-[45vh] md:max-h-screen overflow-y-auto z-10">
+    <!-- Header -->
+    <div class="p-4 border-b border-slate-800 bg-slate-900/50 sticky top-0 backdrop-blur-md z-10 flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-bold text-violet-400 flex items-center gap-2">
+          <i class="fa-solid fa-bugs"></i> 蚂蚁自组织堆排序
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">Deneubourg 涌现分拣模型</p>
+      </div>
+      <span class="px-2 py-1 rounded bg-violet-950 text-violet-300 border border-violet-800 text-[10px] font-mono">V1.2</span>
+    </div>
+
+    <!-- Main Settings Panel -->
+    <div class="p-4 space-y-6 flex-1">
+      <!-- Presets Area -->
+      <div>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">典型教学情境预设</span>
+        <div class="grid grid-cols-1 gap-2">
+          <button onclick="applyPreset('经典三色分拣')" class="py-2 px-3 text-left rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-violet-900 border border-slate-700 transition flex justify-between items-center text-sm">
+            <span>🥚 经典三色分拣 (卵/幼虫/茧)</span>
+            <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+          </button>
+          <button onclick="applyPreset('高感度快速合并')" class="py-2 px-3 text-left rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-violet-900 border border-slate-700 transition flex justify-between items-center text-sm">
+            <span>⚡ 高感度快速合并 (大半径)</span>
+            <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+          </button>
+          <button onclick="applyPreset('局限视野(小堆化)')" class="py-2 px-3 text-left rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-violet-900 border border-slate-700 transition flex justify-between items-center text-sm">
+            <span>🔍 局限视野 (难以形成大堆)</span>
+            <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Variables / Sliders -->
+      <div class="space-y-4 pt-4 border-t border-slate-800">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">物理与行为参数微调</span>
+
+        <!-- k1 -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300 flex items-center gap-1">
+              拾起敏感度 <code class="text-violet-400 font-mono">k1</code>
+              <i class="fa-regular fa-circle-question text-xs text-slate-500 hover:text-slate-300 cursor-pointer" title="k1越小，蚂蚁越不容易从同伴较多的地方拾起物体"></i>
+            </span>
+            <span id="k1-display" class="font-mono text-violet-400 font-bold">0.10</span>
+          </div>
+          <input type="range" id="k1-slider" min="0.01" max="0.5" step="0.01" value="0.1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-violet-500">
+          <p class="text-[11px] text-slate-500">低值表示蚂蚁对“孤立物体”的搜寻选择性强</p>
+        </div>
+
+        <!-- k2 -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300 flex items-center gap-1">
+              放下敏感度 <code class="text-violet-400 font-mono">k2</code>
+              <i class="fa-regular fa-circle-question text-xs text-slate-500 hover:text-slate-300 cursor-pointer" title="k2越大，需要更密集同类堆积蚂蚁才会放下手中物体"></i>
+            </span>
+            <span id="k2-display" class="font-mono text-violet-400 font-bold">0.30</span>
+          </div>
+          <input type="range" id="k2-slider" min="0.01" max="0.5" step="0.01" value="0.3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-violet-500">
+          <p class="text-[11px] text-slate-500">高值促使堆垛分布更紧密，但形成较慢</p>
+        </div>
+
+        <!-- Radius -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300">感知半径 (r)</span>
+            <span id="radius-display" class="font-mono text-violet-400 font-bold">2 格</span>
+          </div>
+          <input type="range" id="radius-slider" min="1" max="4" step="1" value="2" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-violet-500">
+        </div>
+
+        <!-- Types -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300">分拣物体种类</span>
+            <span id="types-display" class="font-mono text-violet-400 font-bold">3 类</span>
+          </div>
+          <input type="range" id="types-slider" min="1" max="3" step="1" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-violet-500">
+        </div>
+
+        <!-- Ant Count -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300">工作蚁群数量</span>
+            <span id="antCount-display" class="font-mono text-violet-400 font-bold">80 只</span>
+          </div>
+          <input type="range" id="antCount-slider" min="10" max="200" step="5" value="80" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-violet-500">
+        </div>
+
+        <!-- Speed -->
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300">物理加速 (每帧演算次数)</span>
+            <span id="speed-display" class="font-mono text-violet-400 font-bold">50x</span>
+          </div>
+          <input type="range" id="speed-slider" min="1" max="200" step="5" value="50" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-violet-500">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Stats / About -->
+    <div class="p-4 border-t border-slate-800 bg-slate-950/40 text-xs text-slate-500 space-y-2">
+      <div class="flex justify-between">
+        <span>模型内核:</span>
+        <span class="font-mono">Deneubourg (1991)</span>
+      </div>
+      <div class="flex justify-between">
+        <span>系统机制:</span>
+        <span class="text-slate-400">正反馈 & 局部耦合</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT: Main Workspace (Canvas & Real-time Info) -->
+  <main class="flex-1 flex flex-col min-h-[55vh] md:min-h-screen relative overflow-hidden">
+    <!-- Top HUD/Stats dashboard -->
+    <div class="absolute top-4 left-4 right-4 z-10 grid grid-cols-2 sm:grid-cols-4 gap-2 pointer-events-none">
+      <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3 backdrop-blur-md shadow-lg flex flex-col justify-center">
+        <span class="text-[10px] text-slate-400 font-medium tracking-wider uppercase">演化步数</span>
+        <span id="stat-steps" class="text-xl font-bold font-mono text-sky-400">0</span>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3 backdrop-blur-md shadow-lg flex flex-col justify-center">
+        <span class="text-[10px] text-slate-400 font-medium tracking-wider uppercase">整体分拣精度</span>
+        <div class="flex items-baseline gap-1">
+          <span id="stat-sorting" class="text-xl font-bold font-mono text-emerald-400">0.0%</span>
+        </div>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3 backdrop-blur-md shadow-lg flex flex-col justify-center">
+        <span class="text-[10px] text-slate-400 font-medium tracking-wider uppercase">空闲工蚁</span>
+        <span id="stat-free-ants" class="text-xl font-bold font-mono text-amber-400">0</span>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3 backdrop-blur-md shadow-lg flex flex-col justify-center">
+        <span class="text-[10px] text-slate-400 font-medium tracking-wider uppercase">负重工蚁</span>
+        <span id="stat-busy-ants" class="text-xl font-bold font-mono text-rose-400">0</span>
+      </div>
+    </div>
+
+    <!-- Active interactive status/mode -->
+    <div class="absolute top-24 left-4 z-10 bg-slate-900/95 border border-slate-800 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs shadow-md">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" id="status-indicator"></span>
+      <span id="status-text" class="text-slate-300 font-medium">准备就绪</span>
+    </div>
+
+    <!-- Interactive Painting Tool Panel -->
+    <div class="absolute bottom-20 left-4 z-10 bg-slate-900/90 border border-slate-800/80 p-2 rounded-xl backdrop-blur shadow-xl flex items-center gap-2">
+      <span class="text-xs text-slate-400 px-1 font-bold">手绘放置:</span>
+      <button onclick="setPaintTool(-1)" id="tool-ant" class="paint-tool-btn px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-transparent transition flex items-center gap-1">
+        <i class="fa-solid fa-bug text-white"></i> 蚂蚁
+      </button>
+      <button onclick="setPaintTool(0)" id="tool-egg" class="paint-tool-btn px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-transparent transition flex items-center gap-1">
+        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> 卵
+      </button>
+      <button onclick="setPaintTool(1)" id="tool-larva" class="paint-tool-btn px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-transparent transition flex items-center gap-1">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> 幼虫
+      </button>
+      <button onclick="setPaintTool(2)" id="tool-cocoon" class="paint-tool-btn px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-transparent transition flex items-center gap-1">
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 茧
+      </button>
+      <button onclick="setPaintTool('clear')" id="tool-clear" class="paint-tool-btn px-2 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-transparent transition flex items-center gap-1">
+        <i class="fa-solid fa-eraser text-slate-400"></i> 擦除
+      </button>
+    </div>
+
+    <!-- Color Legend Overlay -->
+    <div class="absolute top-24 right-4 z-10 bg-slate-900/80 border border-slate-800/50 p-2.5 rounded-xl backdrop-blur text-xs space-y-1 shadow-md pointer-events-none">
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-cyan-400 inline-block"></span> <span class="text-slate-300">🥚 卵 (Eggs)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> <span class="text-slate-300">🐛 幼虫 (Larvae)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-rose-500 inline-block"></span> <span class="text-slate-300">🟤 茧 (Cocoons)</span></div>
+    </div>
+
+    <!-- Center Interactive Canvas Container -->
+    <div class="flex-1 w-full h-full flex items-center justify-center p-4 pt-24 pb-20 select-none">
+      <div class="relative w-full h-full max-w-[650px] max-h-[650px] aspect-square bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center shadow-2xl">
+        <canvas id="sim-canvas" class="w-full h-full cursor-crosshair grid-bg touch-none"></canvas>
+      </div>
+    </div>
+
+    <!-- Bottom Controls & Action Toolbar -->
+    <div class="absolute bottom-4 left-4 right-4 z-10 flex gap-2 sm:gap-3 justify-center items-center pointer-events-auto">
+      <button id="main-btn" onclick="handleMainButton()" class="flex-1 sm:flex-none py-3 px-8 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-all transform active:scale-95 shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2 min-h-[48px] min-w-[140px] text-sm md:text-base">
+        <i class="fa-solid fa-play" id="main-btn-icon"></i> <span id="main-btn-text">启动模拟</span>
+      </button>
+
+      <button id="reset-btn" onclick="resetSimulation()" class="py-3 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white font-semibold transition active:scale-95 flex items-center justify-center gap-2 min-h-[48px] text-sm md:text-base">
+        <i class="fa-solid fa-arrow-rotate-left"></i> 重置
+      </button>
+    </div>
+  </main>
+
+  <script>
+    // --- SIMULATION PARAMETERS & GLOBAL STATES ---
+    const GRID_SIZE = 64; // NxN square grid
+    let grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(-1));
+    let ants = [];
+
+    // State machine variables
+    let state = {
+      running: false,
+      paused: false,
+      ended: false,
+      steps: 0
+    };
+
+    // Live variables dynamically bound to UI sliders
+    let config = {
+      k1: 0.1,
+      k2: 0.3,
+      radius: 2,
+      types: 3,
+      antCount: 80,
+      speed: 50 // Simulation loops per requestAnimationFrame
+    };
+
+    // UI interactive drawing tool State
+    let currentPaintTool = -1; // -1: Ants, 0: Eggs, 1: Larvae, 2: Cocoons, 'clear': Eraser
+
+    // Canvas rendering setup
+    const canvas = document.getElementById('sim-canvas');
+    const ctx = canvas.getContext('2d');
+    let cellSize = 10;
+
+    // Mapping items back to colorful states
+    const COLOR_PALETTE = {
+      empty: 'rgba(30, 41, 59, 0.4)',
+      eggs: '#22d3ee',     // Cyan
+      larvae: '#fbbf24',   // Amber
+      cocoons: '#f43f5e',  // Rose
+      antEmpty: '#ffffff', // White
+      antCarrying: {
+        0: '#67e8f9',
+        1: '#fde047',
+        2: '#fda4af'
+      }
+    };
+
+    // --- INITIALIZATION & CORE FUNCTIONS ---
+
+    function init() {
+      setupCanvas();
+      readControls();
+      resetSimulation();
+      setupEventListeners();
+      animate();
+    }
+
+    function setupCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.width * dpr; // Force 1:1 square ratio
+      ctx.scale(dpr, dpr);
+      cellSize = rect.width / GRID_SIZE;
+    }
+
+    function readControls() {
+      config.k1 = parseFloat(document.getElementById('k1-slider').value);
+      config.k2 = parseFloat(document.getElementById('k2-slider').value);
+      config.radius = parseInt(document.getElementById('radius-slider').value);
+      config.types = parseInt(document.getElementById('types-slider').value);
+      config.antCount = parseInt(document.getElementById('antCount-slider').value);
+      config.speed = parseInt(document.getElementById('speed-slider').value);
+
+      // Update Slider Displays
+      document.getElementById('k1-display').innerText = config.k1.toFixed(2);
+      document.getElementById('k2-display').innerText = config.k2.toFixed(2);
+      document.getElementById('radius-display').innerText = config.radius + ' 格';
+      document.getElementById('types-display').innerText = config.types + ' 类';
+      document.getElementById('antCount-display').innerText = config.antCount + ' 只';
+      document.getElementById('speed-display').innerText = config.speed + 'x';
+    }
+
+    function resetSimulation() {
+      state.running = false;
+      state.paused = false;
+      state.ended = false;
+      state.steps = 0;
+
+      updateMainButtonUI();
+      updateStatusDisplay("准备就绪", "emerald");
+
+      // Reset Matrix Grid
+      grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(-1));
+
+      // Disperse items uniformly based on active types count
+      // Let's seed about 15% grid capacity with active items
+      const targetDensity = 0.14;
+      const totalItems = Math.floor(GRID_SIZE * GRID_SIZE * targetDensity);
+      const itemsPerType = Math.floor(totalItems / config.types);
+
+      for (let type = 0; type < config.types; type++) {
+        let spawned = 0;
+        while (spawned < itemsPerType) {
+          let rx = Math.floor(Math.random() * GRID_SIZE);
+          let ry = Math.floor(Math.random() * GRID_SIZE);
+          if (grid[rx][ry] === -1) {
+            grid[rx][ry] = type;
+            spawned++;
+          }
+        }
+      }
+
+      // Disperse Ants uniformly
+      ants = [];
+      for (let i = 0; i < config.antCount; i++) {
+        let rx = Math.floor(Math.random() * GRID_SIZE);
+        let ry = Math.floor(Math.random() * GRID_SIZE);
+        ants.push({
+          x: rx,
+          y: ry,
+          carrying: -1, // -1 means empty hands
+          angle: Math.random() * Math.PI * 2 // Direction for visualization
+        });
+      }
+
+      setPaintTool(-1); // Default tool: Ants
+      calculateMetrics();
+      draw();
+    }
+
+    // --- SIMULATION KERNEL (Deneubourg Math engine) ---
+
+    // Calculate neighborhood local density of a matching item type
+    function getLocalDensity(centerX, centerY, itemType) {
+      let matches = 0;
+      let totalCells = 0;
+      const r = config.radius;
+
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (dx === 0 && dy === 0) continue; // Skip target itself
+
+          // Periodic boundary conditions (wrapping torus world)
+          const nx = (centerX + dx + GRID_SIZE) % GRID_SIZE;
+          const ny = (centerY + dy + GRID_SIZE) % GRID_SIZE;
+
+          totalCells++;
+          if (grid[nx][ny] === itemType) {
+            matches++;
+          }
+        }
+      }
+      return matches / totalCells;
+    }
+
+    // Process a single physical step
+    function simulationStep() {
+      for (let ant of ants) {
+        // 1. Move randomly (Moore Neighborhood or slight direction persistence)
+        let angleOffset = (Math.random() - 0.5) * 1.5;
+        ant.angle += angleOffset;
+
+        // Move to neighbor
+        let dx = Math.round(Math.cos(ant.angle));
+        let dy = Math.round(Math.sin(ant.angle));
+
+        // Limit step range to adjacent cells
+        dx = Math.max(-1, Math.min(1, dx));
+        dy = Math.max(-1, Math.min(1, dy));
+
+        // Update Position (with torus wrap-around bounds)
+        ant.x = (ant.x + dx + GRID_SIZE) % GRID_SIZE;
+        ant.y = (ant.y + dy + GRID_SIZE) % GRID_SIZE;
+
+        const cellValue = grid[ant.x][ant.y];
+
+        // 2. Local Interaction Decision rules
+        if (ant.carrying === -1) {
+          // Empty hand encounter: Chance to Pick up
+          if (cellValue !== -1 && cellValue < config.types) {
+            const f = getLocalDensity(ant.x, ant.y, cellValue);
+            // Probability formula: P_pick = (k1 / (k1 + f))^2
+            const p_pick = Math.pow(config.k1 / (config.k1 + f), 2);
+
+            if (Math.random() < p_pick) {
+              ant.carrying = cellValue;
+              grid[ant.x][ant.y] = -1; // Picked up! Cell becomes empty
+            }
+          }
+        } else {
+          // Loaded state: Chance to Drop
+          if (cellValue === -1) {
+            const f = getLocalDensity(ant.x, ant.y, ant.carrying);
+            // Probability formula: P_drop = (f / (k2 + f))^2
+            const p_drop = Math.pow(f / (config.k2 + f), 2);
+
+            if (Math.random() < p_drop) {
+              grid[ant.x][ant.y] = ant.carrying;
+              ant.carrying = -1; // Unloaded successfully!
+            }
+          }
+        }
+      }
+      state.steps++;
+    }
+
+    // Performance Optimized Loop
+    function updateSimulation() {
+      if (state.running && !state.paused) {
+        // Run multiple internal computational steps per frame to visual sorting speeds
+        for (let i = 0; i < config.speed; i++) {
+          simulationStep();
+        }
+      }
+    }
+
+    // --- METRICS & RENDER ENGINE ---
+
+    function calculateMetrics() {
+      // Metric 1: Counts of loaded vs empty ants
+      let loadedAnts = 0;
+      for (let ant of ants) {
+        if (ant.carrying !== -1) loadedAnts++;
+      }
+      document.getElementById('stat-free-ants').innerText = ants.length - loadedAnts;
+      document.getElementById('stat-busy-ants').innerText = loadedAnts;
+      document.getElementById('stat-steps').innerText = state.steps;
+
+      // Metric 2: Average Spatial Sorting Index (Purity of clusters)
+      // Measures how much each item is surrounded by its own species
+      let totalItemCount = 0;
+      let neighborhoodHomogeneitySum = 0;
+
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          const type = grid[x][y];
+          if (type !== -1 && type < config.types) {
+            totalItemCount++;
+            neighborhoodHomogeneitySum += getLocalDensity(x, y, type);
+          }
+        }
+      }
+
+      let sortingQuality = 0;
+      if (totalItemCount > 0) {
+        // Normalize against dynamic maximum sorting factor
+        sortingQuality = (neighborhoodHomogeneitySum / totalItemCount) * 100;
+      }
+      document.getElementById('stat-sorting').innerText = sortingQuality.toFixed(1) + '%';
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Render items on grid
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          const item = grid[x][y];
+          if (item !== -1 && item < config.types) {
+            ctx.fillStyle = item === 0 ? COLOR_PALETTE.eggs : (item === 1 ? COLOR_PALETTE.larvae : COLOR_PALETTE.cocoons);
+            // Soft rounded shapes for bio-organic feel
+            ctx.beginPath();
+            ctx.arc(
+              (x + 0.5) * cellSize,
+              (y + 0.5) * cellSize,
+              cellSize * 0.42,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+          }
+        }
+      }
+
+      // Render active ants
+      for (let ant of ants) {
+        ctx.save();
+        ctx.translate((ant.x + 0.5) * cellSize, (ant.y + 0.5) * cellSize);
+        ctx.rotate(ant.angle);
+
+        // Carry status indicators
+        if (ant.carrying !== -1) {
+          ctx.fillStyle = COLOR_PALETTE.antCarrying[ant.carrying];
+          ctx.beginPath();
+          ctx.arc(cellSize * 0.5, 0, cellSize * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Draw Ant insect body (represented as abstract vector triangle & eyes)
+        ctx.fillStyle = ant.carrying !== -1 ? 'rgba(244, 63, 94, 0.9)' : 'rgba(255, 255, 255, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(cellSize * 0.6, 0);
+        ctx.lineTo(-cellSize * 0.4, -cellSize * 0.35);
+        ctx.lineTo(-cellSize * 0.1, 0);
+        ctx.lineTo(-cellSize * 0.4, cellSize * 0.35);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    function animate() {
+      updateSimulation();
+      if (state.steps % 4 === 0) {
+        // Optimize metric calculations (heavy computations) to run once every few frames
+        calculateMetrics();
+      }
+      draw();
+      requestAnimationFrame(animate);
+    }
+
+    // --- INTERACTIVE & CONTROL LOGIC ---
+
+    function handleMainButton() {
+      if (!state.running) {
+        // Start Simulation
+        state.running = true;
+        state.paused = false;
+        updateStatusDisplay("蚁群正在全力分拣中...", "violet");
+      } else if (state.running && !state.paused) {
+        // Pause Simulation
+        state.paused = true;
+        updateStatusDisplay("模拟已暂停", "amber");
+      } else {
+        // Resume Simulation
+        state.paused = false;
+        updateStatusDisplay("蚁群正在全力分拣中...", "violet");
+      }
+      updateMainButtonUI();
+    }
+
+    function updateMainButtonUI() {
+      const btnText = document.getElementById('main-btn-text');
+      const btnIcon = document.getElementById('main-btn-icon');
+      const btn = document.getElementById('main-btn');
+
+      if (!state.running) {
+        btnText.innerText = "启动模拟";
+        btnIcon.className = "fa-solid fa-play";
+        btn.className = "flex-1 sm:flex-none py-3 px-8 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-all transform active:scale-95 shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2 min-h-[48px] min-w-[140px] text-sm md:text-base";
+      } else if (state.running && !state.paused) {
+        btnText.innerText = "暂停模拟";
+        btnIcon.className = "fa-solid fa-pause";
+        btn.className = "flex-1 sm:flex-none py-3 px-8 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition-all transform active:scale-95 shadow-lg shadow-amber-900/30 flex items-center justify-center gap-2 min-h-[48px] min-w-[140px] text-sm md:text-base";
+      } else {
+        btnText.innerText = "恢复模拟";
+        btnIcon.className = "fa-solid fa-play";
+        btn.className = "flex-1 sm:flex-none py-3 px-8 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-all transform active:scale-95 shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2 min-h-[48px] min-w-[140px] text-sm md:text-base";
+      }
+    }
+
+    function updateStatusDisplay(text, color) {
+      const indicator = document.getElementById('status-indicator');
+      const textEl = document.getElementById('status-text');
+
+      textEl.innerText = text;
+      indicator.className = `w-2.5 h-2.5 rounded-full animate-pulse bg-${color}-500`;
+    }
+
+    function applyPreset(presetName) {
+      const configData = JSON.parse(document.getElementById('widget-config').textContent);
+      const preset = configData.presets.find(p => p.name === presetName);
+
+      if (preset) {
+        // Set values directly into UI Sliders
+        Object.entries(preset.variables).forEach(([key, value]) => {
+          const slider = document.getElementById(key + '-slider');
+          if (slider) {
+            slider.value = value;
+          }
+        });
+        readControls();
+        resetSimulation();
+
+        // High visual pulse on activation
+        const highlightEl = document.getElementById('sim-canvas');
+        highlightEl.style.outline = '4px solid rgba(139, 92, 246, 0.8)';
+        setTimeout(() => highlightEl.style.outline = '', 800);
+      }
+    }
+
+    function setPaintTool(toolType) {
+      currentPaintTool = toolType;
+
+      // Reset style across paint button states
+      document.querySelectorAll('.paint-tool-btn').forEach(btn => {
+        btn.classList.remove('border-violet-500', 'bg-violet-950/80', 'text-violet-300');
+        btn.classList.add('border-transparent', 'bg-slate-800');
+      });
+
+      // Map dynamic selected styles
+      let targetId = 'tool-ant';
+      if (toolType === 0) targetId = 'tool-egg';
+      else if (toolType === 1) targetId = 'tool-larva';
+      else if (toolType === 2) targetId = 'tool-cocoon';
+      else if (toolType === 'clear') targetId = 'tool-clear';
+
+      const activeBtn = document.getElementById(targetId);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-800', 'border-transparent');
+        activeBtn.classList.add('border-violet-500', 'bg-violet-950/80', 'text-violet-300');
+      }
+    }
+
+    // Interactive placement on Canvas Touch & Click Actions
+    function handleCanvasInteraction(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      const scaleX = GRID_SIZE / rect.width;
+      const scaleY = GRID_SIZE / rect.height;
+
+      const gridX = Math.floor((clientX - rect.left) * scaleX);
+      const gridY = Math.floor((clientY - rect.top) * scaleY);
+
+      if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
+        if (currentPaintTool === 'clear') {
+          // Erase action
+          grid[gridX][gridY] = -1;
+          // Erase ants if they are extremely close
+          ants = ants.filter(ant => Math.hypot(ant.x - gridX, ant.y - gridY) > 1);
+        } else if (currentPaintTool === -1) {
+          // Spawn Ants
+          ants.push({
+            x: gridX,
+            y: gridY,
+            carrying: -1,
+            angle: Math.random() * Math.PI * 2
+          });
+        } else {
+          // Place bio structural items (eggs, larva, cocoons)
+          if (currentPaintTool < config.types) {
+            grid[gridX][gridY] = currentPaintTool;
+          }
+        }
+        calculateMetrics();
+        draw();
+      }
+    }
+
+    // --- EVENT BINDING & HANDLERS ---
+
+    function setupEventListeners() {
+      // Monitor Slider inputs
+      const sliders = ['k1-slider', 'k2-slider', 'radius-slider', 'types-slider', 'antCount-slider', 'speed-slider'];
+      sliders.forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+          readControls();
+          if (id === 'antCount-slider') {
+            adjustAntPopulation();
+          }
+        });
+      });
+
+      // Window resizing
+      window.addEventListener('resize', () => {
+        setupCanvas();
+        draw();
+      });
+
+      // Mouse interactive gestures
+      let isDrawing = false;
+      canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        handleCanvasInteraction(e);
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        if (isDrawing) handleCanvasInteraction(e);
+      });
+      window.addEventListener('mouseup', () => isDrawing = false);
+
+      // Mobile Touch gestures
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDrawing = true;
+        handleCanvasInteraction(e);
+      }, { passive: false });
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (isDrawing) handleCanvasInteraction(e);
+      }, { passive: false });
+      canvas.addEventListener('touchend', () => isDrawing = false);
+
+      // Keyboard Accessibility mappings
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          handleMainButton();
+        } else if (e.code === 'KeyR') {
+          e.preventDefault();
+          resetSimulation();
+        }
+      });
+    }
+
+    function adjustAntPopulation() {
+      // Adjust active population live while maintaining existing simulated arrays
+      const target = config.antCount;
+      if (ants.length < target) {
+        while (ants.length < target) {
+          ants.push({
+            x: Math.floor(Math.random() * GRID_SIZE),
+            y: Math.floor(Math.random() * GRID_SIZE),
+            carrying: -1,
+            angle: Math.random() * Math.PI * 2
+          });
+        }
+      } else if (ants.length > target) {
+        ants.splice(target);
+      }
+    }
+
+    // --- INTER-WIDGET COMMUNICATIONS (Teacher actions) ---
+
+    window.addEventListener('message', function(event) {
+      const { type, target, state: newState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (newState) {
+            Object.entries(newState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(139, 92, 246, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(139,92,246,0.95); color:white; padding:8px 12px; border-radius:8px; font-size:14px; z-index:1000; animation:fadeIn 0.3s;';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    const style = document.createElement('style');
+    style.textContent = '@keyframes pulse-highlight { 0%, 100% { outline-color: rgba(139, 92, 246, 0.8); } 50% { outline-color: rgba(139, 92, 246, 0.4); } } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }';
+    document.head.appendChild(style);
+
+    // Bootstrap Entry
+    window.onload = init;
+  </script>
+</body>
+</html>

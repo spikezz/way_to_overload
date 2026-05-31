@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>蜜蜂巢自组织（Camazine模型）模拟</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom styles for touch targets and sliders */
+    input[type="range"] {
+      touch-action: manipulation;
+      height: 8px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #eab308;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(30, 41, 59, 0.5);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.5);
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden selection:bg-amber-500/30">
+
+  <!-- Embedded Widget Config -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "camazine_honeycomb_self_organization",
+    "description": "模拟蜜蜂巢脾自发组织形成：中心育儿区、中圈花粉、外圈蜂蜜的同心三阶段空间布局（stigmergy 范例）。",
+    "variables": [
+      { "name": "queenLayingRate", "label": "蜂王产卵率", "min": 0, "max": 1, "default": 0.6, "unit": "" },
+      { "name": "honeyDepositRate", "label": "蜂蜜存入率", "min": 0, "max": 1, "default": 0.5, "unit": "" },
+      { "name": "pollenDepositRate", "label": "花粉存入率", "min": 0, "max": 1, "default": 0.4, "unit": "" },
+      { "name": "broodConsumptionRate", "label": "花粉消耗率", "min": 0, "max": 1, "default": 0.7, "unit": "" },
+      { "name": "broodCycleTime", "label": "育儿周期", "min": 50, "max": 300, "default": 150, "unit": "步" }
+    ],
+    "presets": [
+      {
+        "name": "标准自组织",
+        "variables": {
+          "queenLayingRate": 0.6,
+          "honeyDepositRate": 0.5,
+          "pollenDepositRate": 0.4,
+          "broodConsumptionRate": 0.7,
+          "broodCycleTime": 150
+        }
+      },
+      {
+        "name": "高采蜜期 (蜂蜜扩张)",
+        "variables": {
+          "queenLayingRate": 0.4,
+          "honeyDepositRate": 0.9,
+          "pollenDepositRate": 0.3,
+          "broodConsumptionRate": 0.6,
+          "broodCycleTime": 120
+        }
+      },
+      {
+        "name": "春季育儿潮 (育儿区扩大)",
+        "variables": {
+          "queenLayingRate": 0.9,
+          "honeyDepositRate": 0.3,
+          "pollenDepositRate": 0.6,
+          "broodConsumptionRate": 0.9,
+          "broodCycleTime": 180
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Main Responsive Layout -->
+  <div class="flex-1 flex flex-col lg:flex-row h-screen w-full overflow-hidden">
+    
+    <!-- Left Sidebar: Controls & Science (Scrollable) -->
+    <aside id="controls" class="w-full lg:w-96 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between shrink-0 max-h-[45vh] lg:max-h-screen overflow-y-auto custom-scrollbar z-10 shadow-2xl">
+      <div class="p-4 lg:p-6 space-y-6">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">🐝</span>
+            <h1 class="text-xl font-bold tracking-tight text-amber-400">蜂巢自组织模拟</h1>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">基于 Camazine 经典模型（Stigmergy 局部交互规则）</p>
+        </div>
+
+        <!-- Presets -->
+        <div class="space-y-2">
+          <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">运行场景预设</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button id="preset-default-btn" onclick="applyPreset(0)" class="text-xs py-2 px-1 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded border border-slate-700 text-center text-slate-200">标准组织</button>
+            <button id="preset-honey-btn" onclick="applyPreset(1)" class="text-xs py-2 px-1 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded border border-slate-700 text-center text-slate-200">高采蜜期</button>
+            <button id="preset-brood-btn" onclick="applyPreset(2)" class="text-xs py-2 px-1 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all rounded border border-slate-700 text-center text-slate-200">育儿高峰</button>
+          </div>
+        </div>
+
+        <!-- Controls Form -->
+        <div class="space-y-4">
+          <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">参数调节</label>
+          
+          <!-- Slider 1 -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-200 inline-block"></span>
+                蜂王产卵率
+              </span>
+              <span id="queenLayingRate-display" class="font-mono text-amber-400 font-bold">0.60</span>
+            </div>
+            <input type="range" id="queenLayingRate-slider" min="0" max="1" step="0.05" value="0.6" class="w-full accent-amber-500 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+          </div>
+
+          <!-- Slider 2 -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                蜂蜜存入率
+              </span>
+              <span id="honeyDepositRate-display" class="font-mono text-amber-400 font-bold">0.50</span>
+            </div>
+            <input type="range" id="honeyDepositRate-slider" min="0" max="1" step="0.05" value="0.5" class="w-full accent-amber-500 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+          </div>
+
+          <!-- Slider 3 -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>
+                花粉存入率
+              </span>
+              <span id="pollenDepositRate-display" class="font-mono text-amber-400 font-bold">0.40</span>
+            </div>
+            <input type="range" id="pollenDepositRate-slider" min="0" max="1" step="0.05" value="0.4" class="w-full accent-amber-500 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+          </div>
+
+          <!-- Slider 4 -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-300 flex items-center gap-1.5 text-xs lg:text-sm">
+                <span class="w-2.5 h-2.5 rounded-full bg-orange-600 inline-block"></span>
+                幼虫消耗花粉率
+              </span>
+              <span id="broodConsumptionRate-display" class="font-mono text-amber-400 font-bold">0.70</span>
+            </div>
+            <input type="range" id="broodConsumptionRate-slider" min="0" max="1" step="0.05" value="0.7" class="w-full accent-amber-500 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+          </div>
+
+          <!-- Slider 5 -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span>
+                育儿成熟期周期
+              </span>
+              <span id="broodCycleTime-display" class="font-mono text-amber-400 font-bold">150步</span>
+            </div>
+            <input type="range" id="broodCycleTime-slider" min="50" max="300" step="10" value="150" class="w-full accent-amber-500 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+      <!-- Control actions & Quick Legend -->
+      <div class="p-4 lg:p-6 bg-slate-900/90 border-t border-slate-800 space-y-4">
+        <!-- Interactive Mode selector -->
+        <div class="flex items-center justify-between gap-2 text-xs text-slate-400">
+          <span>点击巢房手动添加:</span>
+          <div class="flex gap-1.5">
+            <button onclick="setBrush('brood')" id="brush-brood" class="px-2 py-1 rounded bg-slate-800 border border-yellow-200/20 text-yellow-100 font-medium">育儿</button>
+            <button onclick="setBrush('pollen')" id="brush-pollen" class="px-2 py-1 rounded bg-slate-800 border border-orange-500/20 text-orange-400 font-medium">花粉</button>
+            <button onclick="setBrush('honey')" id="brush-honey" class="px-2 py-1 rounded bg-slate-800 border border-amber-500/20 text-amber-400 font-medium">蜂蜜</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button id="start-btn" onclick="toggleSimulation()" class="w-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl transition-all shadow-lg active:scale-95 text-sm">
+            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path id="start-btn-icon" d="M8 5v14l11-7z"/></svg>
+            <span id="start-btn-text">启动模拟</span>
+          </button>
+          <button id="reset-btn" onclick="resetSimulation()" class="w-full min-h-[44px] flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl border border-slate-700 transition-all active:scale-95 text-sm">
+            <svg class="w-4 h-4 stroke-current fill-none" stroke-width="2" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-5v5h5M4 13a8.1 8.1 0 0 0 15.5 2m.5 5v-5h-5"/></svg>
+            重置
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Area: Simulation & Dynamic Stats -->
+    <main class="flex-1 flex flex-col min-h-[350px] relative p-4 lg:p-6 justify-between gap-4 overflow-hidden">
+      
+      <!-- Top HUD: Counts & Status -->
+      <div class="w-full grid grid-cols-4 gap-2 lg:gap-4 shrink-0 z-10">
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 p-2.5 rounded-xl flex flex-col justify-center">
+          <div class="text-slate-400 text-[10px] lg:text-xs font-medium">⏱ 仿真时间</div>
+          <div id="step-count" class="text-sm lg:text-lg font-bold font-mono text-slate-100">0000 步</div>
+        </div>
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 p-2.5 rounded-xl flex items-center gap-2.5">
+          <div class="w-3.5 h-3.5 rounded-full bg-yellow-200/90 shadow-[0_0_8px_rgba(254,240,138,0.5)]"></div>
+          <div>
+            <div class="text-slate-400 text-[10px] lg:text-xs font-medium">育儿区 (卵/蛹)</div>
+            <div id="stat-brood" class="text-xs lg:text-sm font-bold font-mono text-yellow-100">0 %</div>
+          </div>
+        </div>
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 p-2.5 rounded-xl flex items-center gap-2.5">
+          <div class="w-3.5 h-3.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
+          <div>
+            <div class="text-slate-400 text-[10px] lg:text-xs font-medium">储粉区 (花粉)</div>
+            <div id="stat-pollen" class="text-xs lg:text-sm font-bold font-mono text-orange-400">0 %</div>
+          </div>
+        </div>
+        <div class="bg-slate-900/60 backdrop-blur border border-slate-800 p-2.5 rounded-xl flex items-center gap-2.5">
+          <div class="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
+          <div>
+            <div class="text-slate-400 text-[10px] lg:text-xs font-medium">储蜜区 (蜂蜜)</div>
+            <div id="stat-honey" class="text-xs lg:text-sm font-bold font-mono text-amber-400">0 %</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Canvas Container -->
+      <div class="flex-1 relative w-full flex items-center justify-center overflow-hidden">
+        <canvas id="canvas" class="cursor-crosshair transition-shadow duration-300 max-w-full max-h-full aspect-square"></canvas>
+        
+        <!-- Live status watermarks -->
+        <div id="status-badge" class="absolute top-2 right-2 px-2 py-1 rounded bg-slate-900/80 text-[10px] font-bold tracking-widest text-slate-400 border border-slate-800 pointer-events-none uppercase">已暂停</div>
+        
+        <!-- Queen info window -->
+        <div class="absolute bottom-2 left-2 bg-slate-950/90 border border-slate-800 px-3 py-1.5 rounded-lg text-xs pointer-events-none hidden md:block">
+          <span class="text-amber-400">👑 蜂王定位：</span><span id="queen-pos" class="font-mono text-slate-300">巢中央</span>
+        </div>
+      </div>
+
+      <!-- Bottom HUD: Radial Distribution (Concentric Proof!) -->
+      <div class="w-full bg-slate-900/60 backdrop-blur border border-slate-800 p-3 rounded-2xl shrink-0 z-10 flex flex-col md:flex-row items-center gap-4">
+        <div class="w-full md:w-1/4 shrink-0 text-center md:text-left">
+          <h3 class="text-xs font-bold text-amber-400">空间径向密度分布 (定量图表)</h3>
+          <p class="text-[10px] text-slate-400 mt-1">展示自内而外（中心 ➔ 边缘）三种物质的占比</p>
+        </div>
+        <div class="flex-1 w-full grid grid-cols-6 gap-1 lg:gap-2 h-16 items-end" id="radial-chart-container">
+          <!-- Dynamically filled with bars -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Simulation logic -->
+  <script>
+    // --- State Machine ---
+    const state = {
+      running: false,
+      ended: false,
+      paused: true,
+      
+      // CA model grid configuration
+      cols: 33, // Hex grid odd/even coordinate setup
+      rows: 29,
+      grid: [], // 2D array [col][row] containing { type: 'empty'|'brood'|'pollen'|'honey', age: 0 }
+      
+      // Agent
+      queen: { col: 16, row: 14 },
+      
+      // Control parameters
+      queenLayingRate: 0.6,
+      honeyDepositRate: 0.5,
+      pollenDepositRate: 0.4,
+      broodConsumptionRate: 0.7,
+      broodCycleTime: 150,
+      
+      // Counters
+      step: 0,
+      brush: 'brood'
+    };
+
+    // Canvas rendering cache
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let hexRadius = 10;
+    
+    // Config preset definitions
+    const presets = [
+      { queenLayingRate: 0.6, honeyDepositRate: 0.5, pollenDepositRate: 0.4, broodConsumptionRate: 0.7, broodCycleTime: 150 },
+      { queenLayingRate: 0.4, honeyDepositRate: 0.9, pollenDepositRate: 0.3, broodConsumptionRate: 0.6, broodCycleTime: 120 },
+      { queenLayingRate: 0.9, honeyDepositRate: 0.3, pollenDepositRate: 0.6, broodConsumptionRate: 0.9, broodCycleTime: 180 }
+    ];
+
+    // Colors
+    const COLORS = {
+      empty: '#1e293b',    // deep slate-800
+      brood: '#fef08a',    // soft yellow-200 (egg/larvae)
+      pollen: '#f97316',   // vibrant orange-500
+      honey: '#eab308',    // amber gold-500
+      line: '#334155'      // cell border
+    };
+
+    // --- Init grid ---
+    function initGrid() {
+      state.grid = [];
+      for (let c = 0; c < state.cols; c++) {
+        state.grid[c] = [];
+        for (let r = 0; r < state.rows; r++) {
+          // Fill initially empty, but add a sparse scattering of random debris
+          let type = 'empty';
+          const rDist = getDistToCenter(c, r);
+          
+          // Initial small colony center to kickstart natural flow
+          if (rDist < 4 && Math.random() < 0.3) {
+            type = 'brood';
+          } else if (rDist >= 4 && rDist < 8 && Math.random() < 0.2) {
+            type = 'pollen';
+          } else if (rDist >= 8 && Math.random() < 0.15) {
+            type = 'honey';
+          }
+          
+          state.grid[c][r] = {
+            type: type,
+            age: type === 'brood' ? Math.floor(Math.random() * 50) : 0
+          };
+        }
+      }
+      state.queen.col = Math.floor(state.cols / 2);
+      state.queen.row = Math.floor(state.rows / 2);
+      state.step = 0;
+    }
+
+    // --- Distance in Hex grid metric ---
+    function getDistToCenter(col, row) {
+      const centerCol = (state.cols - 1) / 2;
+      const centerRow = (state.rows - 1) / 2;
+      
+      // Translate to standard Cartesian offset
+      const x1 = col + (row & 1) * 0.5;
+      const y1 = row * 0.866;
+      const x2 = centerCol + (Math.floor(centerRow) & 1) * 0.5;
+      const y2 = centerRow * 0.866;
+      
+      const dx = x1 - x2;
+      const dy = y1 - y2;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // Neighbors index in odd-r horizontal offset coordinates
+    function getNeighbors(col, row) {
+      const neighbors = [];
+      const parity = row & 1;
+      const directions = parity ? [
+        [+1,  0], [+1, -1], [ 0, -1],
+        [-1,  0], [ 0, +1], [+1, +1]
+      ] : [
+        [+1,  0], [ 0, -1], [-1, -1],
+        [-1,  0], [-1, +1], [ 0, +1]
+      ];
+
+      for (const [dc, dr] of directions) {
+        const nc = col + dc;
+        const nr = row + dr;
+        if (nc >= 0 && nc < state.cols && nr >= 0 && nr < state.rows) {
+          neighbors.push({ col: nc, row: nr });
+        }
+      }
+      return neighbors;
+    }
+
+    // Count neighbors of specific types
+    function countNeighborTypes(col, row) {
+      const neighbors = getNeighbors(col, row);
+      const counts = { empty: 0, brood: 0, pollen: 0, honey: 0 };
+      for (const n of neighbors) {
+        counts[state.grid[n.col][n.row].type]++;
+      }
+      return counts;
+    }
+
+    // --- Interactive brush ---
+    function setBrush(type) {
+      state.brush = type;
+      ['brood', 'pollen', 'honey'].forEach(t => {
+        const el = document.getElementById('brush-' + t);
+        if (t === type) {
+          el.className = `px-2 py-1 rounded bg-amber-500 border border-amber-400 text-slate-950 font-semibold shadow-inner scale-105 transition-all`;
+        } else {
+          el.className = `px-2 py-1 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 font-medium transition-all`;
+        }
+      });
+    }
+
+    // --- Main Simulator Step (Rule-based CA Engine) ---
+    function simulateStep() {
+      // Create updates to write at end of step
+      const gridNext = [];
+      for (let c = 0; c < state.cols; c++) {
+        gridNext[c] = [];
+        for (let r = 0; r < state.rows; r++) {
+          gridNext[c][r] = { ...state.grid[c][r] };
+        }
+      }
+
+      const centerCol = Math.floor(state.cols / 2);
+      const centerRow = Math.floor(state.rows / 2);
+
+      // --- 1. Queen Agent Movement & Laying Eggs ---
+      const queenNeighbors = getNeighbors(state.queen.col, state.queen.row);
+      // Bias her walk back to center
+      if (queenNeighbors.length > 0) {
+        let bestNeighbor = queenNeighbors[0];
+        let minDist = getDistToCenter(bestNeighbor.col, bestNeighbor.row);
+        
+        for (const qn of queenNeighbors) {
+          const d = getDistToCenter(qn.col, qn.row);
+          if (d < minDist) {
+            minDist = d;
+            bestNeighbor = qn;
+          }
+        }
+        
+        // 65% chance to move towards center, 35% entirely random walk
+        if (Math.random() < 0.65) {
+          state.queen.col = bestNeighbor.col;
+          state.queen.row = bestNeighbor.row;
+        } else {
+          const randomN = queenNeighbors[Math.floor(Math.random() * queenNeighbors.length)];
+          state.queen.col = randomN.col;
+          state.queen.row = randomN.row;
+        }
+      }
+
+      // If queen lands on empty cell, lay egg
+      const queenCell = gridNext[state.queen.col][state.queen.row];
+      if (queenCell.type === 'empty' && Math.random() < state.queenLayingRate) {
+        queenCell.type = 'brood';
+        queenCell.age = 0;
+      }
+
+      // --- 2. Brood Aging & Consumption of Pollen/Honey ---
+      for (let c = 0; c < state.cols; c++) {
+        for (let r = 0; r < state.rows; r++) {
+          const cell = state.grid[c][r];
+          
+          if (cell.type === 'brood') {
+            // Age increment
+            gridNext[c][r].age++;
+            if (gridNext[c][r].age >= state.broodCycleTime) {
+              // Hatch / eclose -> turns empty
+              gridNext[c][r].type = 'empty';
+              gridNext[c][r].age = 0;
+              continue;
+            }
+
+            // Consumption of Pollen (Brood demands pollen for feeding)
+            if (Math.random() < state.broodConsumptionRate) {
+              const neighbors = getNeighbors(c, r);
+              // Find adjacent pollen to eat
+              const pollenNeighbors = neighbors.filter(n => state.grid[n.col][n.row].type === 'pollen');
+              if (pollenNeighbors.length > 0) {
+                // Consume one unit of pollen, turning that cell empty
+                const pick = pollenNeighbors[Math.floor(Math.random() * pollenNeighbors.length)];
+                gridNext[pick.col][pick.row].type = 'empty';
+              }
+            }
+          }
+        }
+      }
+
+      // --- 3. Foragers Depositing Honey / Pollen (Positive Feedback Stigmergy) ---
+      // We simulate a certain number of foraging trips per step based on parameters
+      const honeyTrips = Math.floor(state.honeyDepositRate * 25);
+      const pollenTrips = Math.floor(state.pollenDepositRate * 15);
+
+      // Deposit Honey
+      for (let i = 0; i < honeyTrips; i++) {
+        const rc = Math.floor(Math.random() * state.cols);
+        const rr = Math.floor(Math.random() * state.rows);
+        
+        if (gridNext[rc][rr].type === 'empty') {
+          // Probability increases with neighboring honey (Autocatalysis)
+          const neighborCounts = countNeighborTypes(rc, rr);
+          const P = 0.02 + 0.18 * neighborCounts.honey; 
+          if (Math.random() < P) {
+            gridNext[rc][rr].type = 'honey';
+          }
+        }
+      }
+
+      // Deposit Pollen
+      for (let i = 0; i < pollenTrips; i++) {
+        const rc = Math.floor(Math.random() * state.cols);
+        const rr = Math.floor(Math.random() * state.rows);
+        
+        if (gridNext[rc][rr].type === 'empty') {
+          // Probability increases with neighboring pollen (Autocatalysis)
+          const neighborCounts = countNeighborTypes(rc, rr);
+          const P = 0.02 + 0.18 * neighborCounts.pollen;
+          if (Math.random() < P) {
+            gridNext[rc][rr].type = 'pollen';
+          }
+        }
+      }
+
+      // --- 4. Honey Consumption (Active Center is Hot / Needs Energy) ---
+      // Honey closer to center is consumed faster by active worker cluster
+      for (let c = 0; c < state.cols; c++) {
+        for (let r = 0; r < state.rows; r++) {
+          if (state.grid[c][r].type === 'honey') {
+            const dist = getDistToCenter(c, r);
+            // Strong gradient of consumption centered at core
+            const consumeProb = 0.18 * Math.exp(-(dist * dist) / 50); 
+            if (Math.random() < consumeProb) {
+              gridNext[c][r].type = 'empty';
+            }
+          }
+        }
+      }
+
+      // Write changes back to master state
+      state.grid = gridNext;
+      state.step++;
+    }
+
+    // --- Stats calculation ---
+    function updateStats() {
+      let total = state.cols * state.rows;
+      let counts = { empty: 0, brood: 0, pollen: 0, honey: 0 };
+      
+      for (let c = 0; c < state.cols; c++) {
+        for (let r = 0; r < state.rows; r++) {
+          counts[state.grid[c][r].type]++;
+        }
+      }
+
+      // Set percentages text
+      document.getElementById('stat-brood').innerText = ((counts.brood / total) * 100).toFixed(1) + ' %';
+      document.getElementById('stat-pollen').innerText = ((counts.pollen / total) * 100).toFixed(1) + ' %';
+      document.getElementById('stat-honey').innerText = ((counts.honey / total) * 100).toFixed(1) + ' %';
+      document.getElementById('step-count').innerText = String(state.step).padStart(4, '0') + ' 步';
+      
+      document.getElementById('queen-pos').innerText = `列 ${state.queen.col}, 行 ${state.queen.row}`;
+
+      // Update concentric radial distribution chart
+      updateRadialChart();
+    }
+
+    // Build the Radial HUD distribution chart
+    function updateRadialChart() {
+      const container = document.getElementById('radial-chart-container');
+      container.innerHTML = ''; // Clear
+
+      const maxDist = Math.max(state.cols, state.rows) / 1.7;
+      const numBins = 6;
+      const bins = Array.from({ length: numBins }, () => ({ brood: 0, pollen: 0, honey: 0, empty: 0, total: 0 }));
+
+      for (let c = 0; c < state.cols; c++) {
+        for (let r = 0; r < state.rows; r++) {
+          const dist = getDistToCenter(c, r);
+          const binIndex = Math.min(Math.floor((dist / maxDist) * numBins), numBins - 1);
+          bins[binIndex][state.grid[c][r].type]++;
+          bins[binIndex].total++;
+        }
+      }
+
+      // Draw HTML stacked progress bars representing layers
+      bins.forEach((bin, idx) => {
+        const flexCol = document.createElement('div');
+        flexCol.className = "flex flex-col items-center h-full w-full justify-end";
+
+        if (bin.total > 0) {
+          const bPct = (bin.brood / bin.total) * 100;
+          const pPct = (bin.pollen / bin.total) * 100;
+          const hPct = (bin.honey / bin.total) * 100;
+          const ePct = (bin.empty / bin.total) * 100;
+
+          const barWrapper = document.createElement('div');
+          barWrapper.className = "w-full flex flex-col justify-end bg-slate-800 rounded overflow-hidden h-12 border border-slate-700/50";
+
+          // Brood section
+          if (bPct > 0) {
+            const bDiv = document.createElement('div');
+            bDiv.style.height = `${bPct}%`;
+            bDiv.className = "bg-yellow-200 transition-all duration-300";
+            barWrapper.appendChild(bDiv);
+          }
+          // Pollen section
+          if (pPct > 0) {
+            const pDiv = document.createElement('div');
+            pDiv.style.height = `${pPct}%`;
+            pDiv.className = "bg-orange-500 transition-all duration-300";
+            barWrapper.appendChild(pDiv);
+          }
+          // Honey section
+          if (hPct > 0) {
+            const hDiv = document.createElement('div');
+            hDiv.style.height = `${hPct}%`;
+            hDiv.className = "bg-amber-500 transition-all duration-300";
+            barWrapper.appendChild(hDiv);
+          }
+          // Empty section
+          if (ePct > 0) {
+            const eDiv = document.createElement('div');
+            eDiv.style.height = `${ePct}%`;
+            eDiv.className = "bg-slate-900/30";
+            barWrapper.appendChild(eDiv);
+          }
+
+          flexCol.appendChild(barWrapper);
+        }
+
+        const label = document.createElement('span');
+        label.className = "text-[9px] text-slate-400 mt-1 font-mono";
+        label.innerText = idx === 0 ? "核心" : idx === numBins - 1 ? "外圈" : `R${idx}`;
+        flexCol.appendChild(label);
+
+        container.appendChild(flexCol);
+      });
+    }
+
+    // --- Responsive Canvas Setup ---
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      const size = Math.min(container.clientWidth, container.clientHeight, 500);
+      
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      ctx.scale(dpr, dpr);
+      
+      // Dynamically fit radius of hexes to screen size
+      const totalWidthMetric = state.cols + 0.5;
+      const totalHeightMetric = state.rows * 0.866 + 0.5;
+      
+      const radX = size / totalWidthMetric;
+      const radY = size / totalHeightMetric;
+      hexRadius = Math.min(radX, radY) * 0.55; 
+      
+      draw();
+    }
+
+    // Draw Hex cell shape
+    function drawHexagon(ctx, x, y, size, fillStyle, strokeStyle) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i;
+        const px = x + size * Math.cos(angle);
+        const py = y + size * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // Canvas Draw Frame
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Centering calculations
+      const totalWidth = (state.cols - 1 + 0.5) * hexRadius * 1.732;
+      const totalHeight = (state.rows - 1) * hexRadius * 1.5;
+      const offsetX = (canvas.width / (window.devicePixelRatio || 1) - totalWidth) / 2 + hexRadius * 0.86;
+      const offsetY = (canvas.height / (window.devicePixelRatio || 1) - totalHeight) / 2 + hexRadius;
+
+      // Render Hex cells
+      for (let c = 0; c < state.cols; c++) {
+        for (let r = 0; r < state.rows; r++) {
+          const cell = state.grid[c][r];
+          const x = offsetX + (c + (r & 1) * 0.5) * hexRadius * 1.732;
+          const y = offsetY + r * hexRadius * 1.5;
+
+          let color = COLORS[cell.type];
+          let borderCol = COLORS.line;
+
+          // Draw the beautiful hex
+          drawHexagon(ctx, x, y, hexRadius - 0.5, color, borderCol);
+
+          // Additional detail highlights inside the honey/pollen cells to look organic
+          if (cell.type === 'pollen') {
+            ctx.beginPath();
+            ctx.arc(x, y, hexRadius * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.fill();
+          } else if (cell.type === 'honey') {
+            ctx.beginPath();
+            ctx.arc(x - hexRadius * 0.2, y - hexRadius * 0.2, hexRadius * 0.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; // glistening effect
+            ctx.fill();
+          } else if (cell.type === 'brood') {
+            // Draw little white larva in the center
+            ctx.beginPath();
+            ctx.arc(x, y, hexRadius * 0.45, 0, Math.PI * 1.5);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw Active Queen Bee (OBVIOUS VISUAL ANIMATION)
+      if (state.queen) {
+        const qx = offsetX + (state.queen.col + (state.queen.row & 1) * 0.5) * hexRadius * 1.732;
+        const qy = offsetY + state.queen.row * hexRadius * 1.5;
+
+        // Draw pulsing selection circle around Queen
+        const pulse = Math.abs(Math.sin(Date.now() / 150)) * 5;
+        ctx.beginPath();
+        ctx.arc(qx, qy, hexRadius + pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw solid Queen icon
+        ctx.beginPath();
+        ctx.arc(qx, qy, hexRadius * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = '#0f172a';
+        ctx.fill();
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Little crown wings
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('👑', qx, qy);
+      }
+    }
+
+    // --- Interaction Event Listeners ---
+    let isMouseDown = false;
+
+    function handleInteraction(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX || e.touches[0].clientX) - rect.left;
+      const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+      // Reverse hex-grid math to locate closest cell
+      const totalWidth = (state.cols - 1 + 0.5) * hexRadius * 1.732;
+      const totalHeight = (state.rows - 1) * hexRadius * 1.5;
+      const offsetX = (canvas.width / (window.devicePixelRatio || 1) - totalWidth) / 2 + hexRadius * 0.86;
+      const offsetY = (canvas.height / (window.devicePixelRatio || 1) - totalHeight) / 2 + hexRadius;
+
+      let closestC = 0;
+      let closestR = 0;
+      let minDist = Infinity;
+
+      for (let c = 0; c < state.cols; c++) {
+        for (let r = 0; r < state.rows; r++) {
+          const hx = offsetX + (c + (r & 1) * 0.5) * hexRadius * 1.732;
+          const hy = offsetY + r * hexRadius * 1.5;
+          const dx = x - hx;
+          const dy = y - hy;
+          const d = dx * dx + dy * dy;
+          if (d < minDist) {
+            minDist = d;
+            closestC = c;
+            closestR = r;
+          }
+        }
+      }
+
+      if (minDist < (hexRadius * 1.5) * (hexRadius * 1.5)) {
+        state.grid[closestC][closestR].type = state.brush;
+        state.grid[closestC][closestR].age = 0;
+        draw();
+        updateStats();
+      }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      isMouseDown = true;
+      handleInteraction(e);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (isMouseDown) handleInteraction(e);
+    });
+    window.addEventListener('mouseup', () => isMouseDown = false);
+
+    // Touch support for mobile
+    canvas.addEventListener('touchstart', (e) => {
+      isMouseDown = true;
+      handleInteraction(e);
+    }, { passive: true });
+    canvas.addEventListener('touchmove', (e) => {
+      if (isMouseDown) handleInteraction(e);
+    }, { passive: true });
+    canvas.addEventListener('touchend', () => isMouseDown = false);
+
+    // --- Button Actions & State Managers ---
+    function toggleSimulation() {
+      if (state.ended) {
+        resetSimulation();
+      }
+      
+      state.paused = !state.paused;
+      state.running = !state.paused;
+      
+      const startBtnText = document.getElementById('start-btn-text');
+      const startBtnIcon = document.getElementById('start-btn-icon');
+      const badge = document.getElementById('status-badge');
+
+      if (state.running) {
+        startBtnText.innerText = "暂停模拟";
+        startBtnIcon.setAttribute('d', 'M6 19h4V5H6v14zm8-14v14h4V5h-4z'); // Pause symbol
+        badge.innerText = "正在运行";
+        badge.className = "absolute top-2 right-2 px-2 py-1 rounded bg-emerald-500/20 text-[10px] font-bold tracking-widest text-emerald-400 border border-emerald-500/30 pointer-events-none uppercase animate-pulse";
+        runLoop();
+      } else {
+        startBtnText.innerText = "继续模拟";
+        startBtnIcon.setAttribute('d', 'M8 5v14l11-7z'); // Play symbol
+        badge.innerText = "已暂停";
+        badge.className = "absolute top-2 right-2 px-2 py-1 rounded bg-slate-900/80 text-[10px] font-bold tracking-widest text-slate-400 border border-slate-800 pointer-events-none uppercase";
+      }
+    }
+
+    function resetSimulation() {
+      state.paused = true;
+      state.running = false;
+      state.ended = false;
+
+      // Reset controls
+      document.getElementById('start-btn-text').innerText = "启动模拟";
+      document.getElementById('start-btn-icon').setAttribute('d', 'M8 5v14l11-7z');
+      const badge = document.getElementById('status-badge');
+      badge.innerText = "已暂停";
+      badge.className = "absolute top-2 right-2 px-2 py-1 rounded bg-slate-900/80 text-[10px] font-bold tracking-widest text-slate-400 border border-slate-800 pointer-events-none uppercase";
+
+      initGrid();
+      resizeCanvas();
+      updateStats();
+    }
+
+    // Apply Presets helper
+    function applyPreset(index) {
+      const preset = presets[index];
+      if (preset) {
+        // Update variables state
+        Object.keys(preset).forEach(key => {
+          state[key] = preset[key];
+          const slider = document.getElementById(key + '-slider');
+          if (slider) {
+            slider.value = preset[key];
+            // Trigger UI update
+            document.getElementById(key + '-display').innerText = 
+              key === 'broodCycleTime' ? `${preset[key]}步` : preset[key].toFixed(2);
+          }
+        });
+        resetSimulation();
+      }
+    }
+
+    // Master Game Loop
+    let lastTime = 0;
+    const interval = 80; // step every 80ms
+
+    function runLoop(time = 0) {
+      if (!state.running) return;
+
+      const delta = time - lastTime;
+      if (delta > interval) {
+        simulateStep();
+        updateStats();
+        lastTime = time;
+      }
+      
+      draw();
+      requestAnimationFrame(runLoop);
+    }
+
+    // --- Interactive Sliders Bindings ---
+    const sliders = [
+      'queenLayingRate',
+      'honeyDepositRate',
+      'pollenDepositRate',
+      'broodConsumptionRate',
+      'broodCycleTime'
+    ];
+
+    sliders.forEach(id => {
+      const slider = document.getElementById(id + '-slider');
+      const display = document.getElementById(id + '-display');
+      slider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        state[id] = val;
+        display.innerText = id === 'broodCycleTime' ? `${val}步` : val.toFixed(2);
+      });
+    });
+
+    // --- Listen to Keyboard Shortcuts ---
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleSimulation();
+      } else if (e.code === 'KeyR') {
+        resetSimulation();
+      }
+    });
+
+    // --- Initialization & Resizing ---
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Set default initial visual brush choice
+    setBrush('brood');
+    
+    // Launch initial state
+    initGrid();
+    setTimeout(() => {
+      resizeCanvas();
+      updateStats();
+    }, 100);
+
+    // --- TEACHER ACTIONS Message Handler (CRITICAL REQUIRED) ---
+    window.addEventListener('message', function(event) {
+      const { type, target, state: newState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (newState) {
+            Object.entries(newState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+            resetSimulation();
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(234, 179, 8, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(234,179,8,0.95); color:#0f172a; font-weight:bold; padding:8px 12px; border-radius:8px; font-size:14px; z-index:1000; animation:fadeIn 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.5);';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Pulse effects style injector
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse-highlight { 0%, 100% { outline-color: rgba(234, 179, 8, 0.8); } 50% { outline-color: rgba(234, 179, 8, 0.3); } } 
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    `;
+    document.head.appendChild(style);
+
+  </script>
+</body>
+</html>
