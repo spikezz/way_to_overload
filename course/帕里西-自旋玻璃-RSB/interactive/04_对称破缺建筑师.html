@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>对称破缺建筑师 | Replica Symmetry Breaking Architect</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0; background: #0b0c15; color: #e8eaf6;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    overflow: hidden; touch-action: none;
+    height: 100vh; width: 100vw; display: flex; flex-direction: column;
+  }
+  #start-screen, #level-screen {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% 0%, #1a1d3a 0%, #0b0c15 70%);
+  }
+  .title {
+    font-size: 32px; font-weight: 800; letter-spacing: 2px;
+    background: linear-gradient(90deg, #ffd54f, #ff8a65, #ba68c8);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px; text-align: center;
+  }
+  .subtitle {
+    font-size: 14px; color: #8e99a4; max-width: 520px; text-align: center; line-height: 1.6;
+    padding: 0 20px; margin-bottom: 28px;
+  }
+  .term-badge {
+    display: inline-block; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 999px;
+    padding: 2px 10px; margin: 2px; font-size: 12px; color: #b0bec5;
+  }
+  .btn {
+    appearance: none; border: none; outline: none; cursor: pointer; user-select: none;
+    padding: 14px 36px; border-radius: 12px; font-size: 16px; font-weight: 700;
+    background: linear-gradient(90deg, #5c6bc0, #8e24aa); color: #fff;
+    box-shadow: 0 8px 24px rgba(94, 53, 177, 0.35);
+    transition: transform .08s ease, box-shadow .2s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent; border: 1px solid rgba(255,255,255,.18);
+    box-shadow: none; color: #cfd8dc;
+  }
+
+  #game-container { display: none; flex-direction: column; height: 100vh; position: relative; }
+  #top-hud {
+    height: 96px; min-height: 96px; padding: 10px 16px 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: linear-gradient(180deg, rgba(15,17,30,.9) 0%, rgba(15,17,30,0) 100%);
+    position: relative; z-index: 20;
+  }
+  .hud-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .hud-center { display: flex; flex-direction: column; align-items: center; flex: 2; min-width: 0; }
+  .hud-right { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; }
+
+  #energy-canvas {
+    width: 100%; height: 72px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  }
+  .hud-title { font-size: 13px; font-weight: 700; color: #b0bec5; letter-spacing: 1px; }
+  .hud-sub { font-size: 11px; color: #78909c; }
+
+  .q-meter {
+    display: flex; gap: 8px; align-items: center; margin-top: 2px;
+  }
+  .q-pill {
+    font-size: 11px; padding: 3px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    white-space: nowrap;
+  }
+  .q-val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+  .q-good { color: #69f0ae; }
+  .q-bad { color: #ff8a80; }
+  .q-mid { color: #ffd54f; }
+
+  #replica-stage {
+    flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 6px 12px 6px; position: relative; z-index: 10;
+  }
+  .replica-panel {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 10px 10px 8px; min-width: 0;
+    display: flex; flex-direction: column; align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  .replica-label {
+    font-size: 12px; font-weight: 700; color: #90a4ae; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .replica-status {
+    width: 8px; height: 8px; border-radius: 50%; background: #546e7a;
+    box-shadow: 0 0 8px rgba(84,110,122,.6);
+  }
+  .replica-status.ordered { background: #69f0ae; box-shadow: 0 0 10px rgba(105,240,174,.7); }
+  .replica-status.glassy { background: #ff8a80; box-shadow: 0 0 10px rgba(255,138,128,.5); }
+  .spin-grid {
+    display: grid; grid-template-columns: repeat(5, 44px); grid-template-rows: repeat(5, 44px); gap: 3px;
+  }
+  .cell {
+    width: 44px; height: 44px; border-radius: 8px; position: relative;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    transition: background .15s ease, transform .2s ease, box-shadow .2s ease;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    user-select: none; cursor: crosshair;
+  }
+  .cell.flashing { animation: flash .15s infinite alternate; }
+  @keyframes flash { from { opacity: .6; } to { opacity: 1; } }
+  .cell.spin-up { background: #1565c0; border-color: #42a5f5; color: #e3f2fd; box-shadow: 0 0 12px rgba(33,150,243,.35) inset; }
+  .cell.spin-down { background: #c62828; border-color: #ef5350; color: #ffebee; box-shadow: 0 0 12px rgba(244,67,54,.35) inset; }
+  .cell.has-field::after {
+    content: ''; position: absolute; inset: 2px; border-radius: 6px;
+    border: 2px dashed rgba(255,255,255,.6);
+  }
+  .cell.drag-over { outline: 2px dashed #ffd54f; outline-offset: -2px; }
+
+  #bottom-controls {
+    height: auto; min-height: 140px; max-height: 230px;
+    background: rgba(10,11,20,.95);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 8px; z-index: 20;
+  }
+  .controls-row { display: flex; align-items: center; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .tool-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .tool-label { font-size: 11px; color: #90a4ae; }
+  .tool-item {
+    width: 60px; height: 60px; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    border: 1px solid rgba(255,255,255,0.14);
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    cursor: grab; touch-action: none; position: relative;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  }
+  .tool-item:active { cursor: grabbing; transform: scale(0.96); }
+  .tool-count {
+    position: absolute; top: -6px; right: -6px;
+    background: #ff8a65; color: #fff; font-size: 11px; font-weight: 800;
+    width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    border: 2px solid #0b0c15;
+  }
+  .ghost {
+    position: fixed; pointer-events: none; z-index: 100; opacity: .92;
+    width: 60px; height: 60px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    background: rgba(255,255,255,0.12); border: 2px solid #ffd54f;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .action-bar { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 4px; }
+  .anneal-btn { background: linear-gradient(90deg, #00bfa5, #00897b); box-shadow: 0 6px 20px rgba(0,191,165,.35); }
+  .reset-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,.18); color: #cfd8dc; box-shadow: none; }
+
+  #overlay-msg {
+    position: fixed; inset: 0; z-index: 60; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+  }
+  .msg-card {
+    background: #141625; border: 1px solid rgba(255,255,255,.1); border-radius: 16px;
+    padding: 24px 28px; max-width: 420px; width: 90%; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .msg-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .msg-body { font-size: 14px; color: #b0bec5; line-height: 1.5; margin-bottom: 16px; }
+  .msg-score { font-size: 13px; color: #ffd54f; margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; margin: 2px; }
+  .badge-gold { background: rgba(255,213,79,.15); color: #ffd54f; border: 1px solid rgba(255,213,79,.3); }
+  .badge-ice { background: rgba(79,195,247,.15); color: #4fc3f7; border: 1px solid rgba(79,195,247,.3); }
+
+  .level-dot { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(255,255,255,.15); color: #90a4ae; font-weight: 700; margin: 0 6px; cursor: pointer; }
+  .level-dot.active { border-color: #ffd54f; color: #ffd54f; background: rgba(255,213,79,.12); }
+
+  @media (max-width: 900px) {
+    #replica-stage { flex-direction: column; gap: 10px; overflow-y: auto; }
+    .spin-grid { grid-template-columns: repeat(5, 44px); grid-template-rows: repeat(5, 44px); }
+    .title { font-size: 24px; }
+    #top-hud { min-height: 84px; }
+  }
+  @media (max-width: 480px) {
+    .spin-grid { grid-template-columns: repeat(5, 40px); grid-template-rows: repeat(5, 40px); gap: 2px; }
+    .cell { width: 40px; height: 40px; font-size: 16px; }
+  }
+</style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="start-screen">
+  <div class="title">对称破缺建筑师</div>
+  <div style="font-size: 14px; color:#8e99a4; margin-bottom: 18px;">Replica Symmetry Breaking Architect</div>
+  <div class="subtitle">
+    面对被高对称性遮蔽的无序阵列，玩家必须策略性地施加<span class="term-badge">差异约束 (RSB)</span>，打破虚假对称，引导系统坍缩到真实的低能有序结构（纯态 Pure States）。
+    <br><br>
+    <span style="color:#b0bec5;">关键：</span>相同约束施加于所有<span class="term-badge">复本 (Replicas)</span>只会维持对称；差异化才是发现<span class="term-badge">Parisi 序参量</span>的线索。
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:10px;">
+    <span class="term-badge">自旋玻璃 (Spin Glass)</span>
+    <span class="term-badge">复本 (Replica)</span>
+    <span class="term-badge">纯态 (Pure State)</span>
+    <span class="term-badge">退火 (Annealing)</span>
+  </div>
+  <button class="btn" onclick="startGame()">开始构建</button>
+  <div style="height:10px"></div>
+  <button class="btn btn-ghost" onclick="showLevels()">选择关卡</button>
+</div>
+
+<!-- Level Select -->
+<div id="level-screen" style="display:none;">
+  <div class="title">选择相位</div>
+  <div style="display:flex; gap:10px; margin: 16px 0;" id="level-dots"></div>
+  <button class="btn btn-ghost" onclick="backToStart()">返回</button>
+</div>
+
+<!-- Game -->
+<div id="game-container">
+  <div id="top-hud">
+    <div class="hud-left">
+      <div>
+        <div class="hud-title">关卡 <span id="level-num">1</span></div>
+        <div class="hud-sub" id="level-desc">打破虚假对称，分离纯态</div>
+      </div>
+    </div>
+    <div class="hud-center">
+      <canvas id="energy-canvas" width="800" height="120"></canvas>
+      <div class="q-meter" id="q-meter"></div>
+    </div>
+    <div class="hud-right">
+      <div style="text-align:right;">
+        <div class="hud-title">分数 <span id="score-display">0</span></div>
+        <div class="hud-sub" id="anneal-state">配置阶段</div>
+      </div>
+      <button class="btn btn-ghost" style="padding:8px 14px; font-size:12px;" onclick="togglePause()">暂停</button>
+    </div>
+  </div>
+
+  <div id="replica-stage">
+    <div class="replica-panel" id="panel-0">
+      <div class="replica-label"><span class="replica-status" id="status-0"></span> 复本 A (Replica A)</div>
+      <div class="spin-grid" id="grid-0"></div>
+    </div>
+    <div class="replica-panel" id="panel-1">
+      <div class="replica-label"><span class="replica-status" id="status-1"></span> 复本 B (Replica B)</div>
+      <div class="spin-grid" id="grid-1"></div>
+    </div>
+    <div class="replica-panel" id="panel-2">
+      <div class="replica-label"><span class="replica-status" id="status-2"></span> 复本 C (Replica C)</div>
+      <div class="spin-grid" id="grid-2"></div>
+    </div>
+  </div>
+
+  <div id="bottom-controls">
+    <div class="controls-row" id="tools-row"></div>
+    <div class="action-bar">
+      <button class="btn anneal-btn" id="anneal-btn" onclick="startAnnealing()">启动退火 (Anneal)</button>
+      <button class="btn reset-btn" onclick="resetLevel()">重置</button>
+      <button class="btn btn-ghost" onclick="backToMenu()">菜单</button>
+    </div>
+    <div style="text-align:center; font-size:11px; color:#546e7a; margin-top:4px;">
+      提示：拖拽下方约束到复本格子上。差异化施加才能打破<span class="term-badge">复本对称 (Replica Symmetry)</span>。
+    </div>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div id="overlay-msg">
+  <div class="msg-card">
+    <div class="msg-title" id="msg-title">结果</div>
+    <div class="msg-body" id="msg-body">...</div>
+    <div class="msg-score" id="msg-score"></div>
+    <div id="msg-badges"></div>
+    <div style="height:16px"></div>
+    <div style="display:flex; gap:10px; justify-content:center;">
+      <button class="btn btn-ghost" onclick="resetLevel(); hideOverlay();">重试</button>
+      <button class="btn" id="next-btn" onclick="nextLevel(); hideOverlay();">下一关</button>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="widget-config">
+{
+  "type": "game",
+  "gameType": "puzzle",
+  "description": "拼图策略游戏。面对被高对称性遮蔽的无序阵列，玩家必须策略性地施加差异约束（复本对称破缺），打破虚假对称，引导系统坍缩到真实的低能有序结构。",
+  "gameConfig": {
+    "controls": ["drag_constraint", "anneal_button", "reset_button"],
+    "replicas": 3,
+    "gridSize": [5, 5],
+    "tools": ["strong_up", "strong_down", "ferro_couple", "frustrate"],
+    "scoring": { "correctPoints": 10, "speedBonus": 5, "parisiBonus": 5 },
+    "levels": [
+      { "id": 1, "name": "初识破缺", "difficulty": 1, "q_threshold": 0.55, "tool_limits": { "strong_up": 3, "strong_down": 3, "ferro_couple": 2, "frustrate": 0 } },
+      { "id": 2, "name": "玻璃迷宫", "difficulty": 2, "q_threshold": 0.45, "tool_limits": { "strong_up": 3, "strong_down": 3, "ferro_couple": 3, "frustrate": 2 } },
+      { "id": 3, "name": "Parisi 深度", "difficulty": 3, "q_threshold": 0.35, "tool_limits": { "strong_up": 4, "strong_down": 4, "ferro_couple": 4, "frustrate": 4 } }
+    ]
+  },
+  "achievements": [
+    { "id": "rsb_novice", "name": "破缺新手", "description": "完成第1关" },
+    { "id": "rsb_architect", "name": "建筑师", "description": "完成第2关" },
+    { "id": "parisi_master", "name": "Parisi 大师", "description": "完成第3关" },
+    { "id": "pure_separator", "name": "纯态分离者", "description": "三复本全部两两低重叠通关" }
+  ]
+}
+</script>
+
+<script>
+// =========================
+// Game Data & Config
+// =========================
+const GRID_N = 5;
+const REPLICAS = 3;
+const MAX_TEMP = 5.0;
+const MIN_TEMP = 0.08;
+const COOL_RATE = 0.985;
+const STEPS_PER_FRAME = 6;
+
+let gameState = 'setup'; // setup | annealing | done
+let isPaused = false;
+let currentLevel = 1;
+let unlockedLevel = 1;
+let totalScore = 0;
+let annealStartTime = 0;
+let animFrameId = null;
+
+// Spin arrays: spin[r][i][j] = +1/-1
+let spins = [];
+// Fields: fields[r][i][j] = applied local field (can be +h or -h)
+let fields = [];
+// Coupling J[i][j][dir] or full neighbor matrix; here nearest neighbor on 2D grid
+let J = []; // J[i][j] = object with keys 'r','d','l','u' or simpler: Jpair between linear indices
+let levelTools = {};
+
+let temp = MAX_TEMP;
+let energyHistory = [[], [], []]; // per replica energy over time
+let canvasEl, ctx;
+let gridEls = [];
+
+// Tool definitions
+const TOOLS = {
+  strong_up: { icon: '🔵', name: '强上自旋场', en: 'Strong Up Field', h: +3.0, color: '#42a5f5' },
+  strong_down: { icon: '🔴', name: '强下自旋场', en: 'Strong Down Field', h: -3.0, color: '#ef5350' },
+  ferro_couple: { icon: '🔗', name: '铁磁耦合', en: 'Ferromagnetic Bond', j_mod: +1.0, color: '#ab47bc' },
+  frustrate: { icon: '⚡', name: '阻挫扭转', en: 'Frustration Twist', j_mod: -1.0, color: '#ffa726' }
+};
+
+// Drag state
+let draggedType = null;
+let ghostEl = null;
+
+// =========================
+// Utils
+// =========================
+function randSpin(){ return Math.random() < .5 ? 1 : -1; }
+function idx(i,j){ return i*GRID_N + j; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+function generateJ(level){
+  // level difficulty determines randomness
+  const diff = (level === 1 ? 0.1 : level === 2 ? 0.45 : 0.6);
+  J = [];
+  for(let i=0;i<GRID_N;i++){
+    J[i] = [];
+    for(let j=0;j<GRID_N;j++){
+      const obj = {};
+      const dirs = [['r',0,1],['d',1,0],['l',0,-1],['u',-1,0]];
+      for(const [k,di,dj] of dirs){
+        const ni=i+di, nj=j+dj;
+        if(ni>=0 && ni<GRID_N && nj>=0 && nj<GRID_N){
+          // base disorder
+          let base = (Math.random() < diff ? (Math.random()<.5?1:-1) : 1);
+          // level 1 mostly ferromagnetic to make it easier
+          if(level===1) base = 1;
+          obj[k] = base;
+        }
+      }
+      J[i][j] = obj;
+    }
+  }
+}
+
+function initSpins(){
+  spins = [];
+  fields = [];
+  for(let r=0;r<REPLICAS;r++){
+    const s=[], f=[];
+    for(let i=0;i<GRID_N;i++){
+      const si=[], fi=[];
+      for(let j=0;j<GRID_N;j++){ si.push(randSpin()); fi.push(0); }
+      s.push(si); f.push(fi);
+    }
+    spins.push(s); fields.push(f);
+  }
+}
+
+function computeLocalField(r,i,j){
+  const s = spins[r];
+  let h = fields[r][i][j];
+  const nbrs = J[i][j];
+  if(nbrs.r) h += nbrs.r * s[i][j+1];
+  if(nbrs.d) h += nbrs.d * s[i+1][j];
+  if(nbrs.l) h += nbrs.l * s[i][j-1];
+  if(nbrs.u) h += nbrs.u * s[i-1][j];
+  return h;
+}
+
+function computeEnergy(r){
+  let e=0;
+  const s = spins[r];
+  for(let i=0;i<GRID_N;i++){
+    for(let j=0;j<GRID_N;j++){
+      const nbrs = J[i][j];
+      // neighbors right and down to avoid double count
+      if(nbrs.r) e -= nbrs.r * s[i][j] * s[i][j+1];
+      if(nbrs.d) e -= nbrs.d * s[i][j] * s[i+1][j];
+      e -= fields[r][i][j] * s[i][j];
+    }
+  }
+  return e;
+}
+
+function computeOverlap(r1,r2){
+  let q=0;
+  for(let i=0;i<GRID_N;i++) for(let j=0;j<GRID_N;j++) q += spins[r1][i][j] * spins[r2][i][j];
+  return q/(GRID_N*GRID_N);
+}
+
+function computeOrderedness(r){
+  // fraction of bonds satisfied (energy local min for each bond) approx
+  let satisfied=0, total=0;
+  const s=spins[r];
+  for(let i=0;i<GRID_N;i++){
+    for(let j=0;j<GRID_N;j++){
+      const nbrs=J[i][j];
+      if(nbrs.r){ total++; if(s[i][j]*s[i][j+1]*nbrs.r === 1) satisfied++; }
+      if(nbrs.d){ total++; if(s[i][j]*s[i+1][j]*nbrs.d === 1) satisfied++; }
+    }
+  }
+  return total>0 ? satisfied/total : 0;
+}
+
+// =========================
+// Rendering
+// =========================
+function renderGridDOM(){
+  gridEls = [];
+  for(let r=0;r<REPLICAS;r++){
+    const g = document.getElementById('grid-'+r);
+    g.innerHTML = '';
+    const cells = [];
+    for(let i=0;i<GRID_N;i++){
+      const row=[];
+      for(let j=0;j<GRID_N;j++){
+        const c = document.createElement('div');
+        c.className = 'cell';
+        c.dataset.r = r; c.dataset.i = i; c.dataset.j = j;
+        c.textContent = spins[r][i][j] === 1 ? '↑' : '↓';
+        c.classList.add(spins[r][i][j]===1 ? 'spin-up' : 'spin-down');
+        if(fields[r][i][j] !== 0) c.classList.add('has-field');
+        g.appendChild(c);
+        row.push(c);
+      }
+      cells.push(row);
+    }
+    gridEls.push(cells);
+  }
+}
+
+function updateGridVisuals(){
+  for(let r=0;r<REPLICAS;r++){
+    for(let i=0;i<GRID_N;i++){
+      for(let j=0;j<GRID_N;j++){
+        const c = gridEls[r][i][j];
+        const s = spins[r][i][j];
+        c.textContent = s === 1 ? '↑' : '↓';
+        c.className = 'cell';
+        c.classList.add(s===1 ? 'spin-up' : 'spin-down');
+        if(fields[r][i][j] !== 0) c.classList.add('has-field');
+        if(gameState === 'annealing') c.classList.add('flashing');
+      }
+    }
+    const ord = computeOrderedness(r);
+    const st = document.getElementById('status-'+r);
+    st.className = 'replica-status ' + (ord > 0.85 ? 'ordered' : ord < 0.5 && temp < 0.5 ? 'glassy' : '');
+  }
+}
+
+function drawEnergyChart(){
+  if(!ctx) return;
+  const w = canvasEl.width, h = canvasEl.height;
+  ctx.clearRect(0,0,w,h);
+  // background grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+  for(let y=0;y<h;y+=20){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  if(energyHistory[0].length < 2) return;
+
+  const maxPts = Math.min(energyHistory[0].length, 300);
+  const start = energyHistory[0].length - maxPts;
+  const colors = ['#42a5f5','#ef5350','#ab47bc'];
+  const minE = -60, maxE = 20; // rough range for 5x5
+
+  for(let r=0;r<REPLICAS;r++){
+    ctx.strokeStyle = colors[r]; ctx.lineWidth = 2; ctx.beginPath();
+    for(let t=0;t<maxPts;t++){
+      const e = energyHistory[r][start+t];
+      const x = (t / (maxPts-1)) * w;
+      const y = h - ((e - minE) / (maxE - minE)) * (h - 10) - 5;
+      if(t===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+  // labels
+  ctx.fillStyle = '#78909c'; ctx.font = '12px sans-serif'; ctx.fillText('能量 (Energy)', 6, 14);
+}
+
+function updateQMeter(){
+  const el = document.getElementById('q-meter');
+  if(!spins.length) return;
+  const q01 = Math.abs(computeOverlap(0,1)).toFixed(2);
+  const q02 = Math.abs(computeOverlap(0,2)).toFixed(2);
+  const q12 = Math.abs(computeOverlap(1,2)).toFixed(2);
+  const th = getQThreshold();
+  function cls(q){ return q < th ? 'q-good' : 'q-mid'; }
+  el.innerHTML =
+    '<span class="q-pill">q<sub>AB</sub>: <span class="q-val '+cls(q01)+'">'+q01+'</span></span>' +
+    '<span class="q-pill">q<sub>AC</sub>: <span class="q-val '+cls(q02)+'">'+q02+'</span></span>' +
+    '<span class="q-pill">q<sub>BC</sub>: <span class="q-val '+cls(q12)+'">'+q12+'</span></span>' +
+    '<span class="q-pill">阈值: '+th+'</span>';
+}
+
+// =========================
+// Level / Tools
+// =========================
+function getQThreshold(){
+  const cfg = JSON.parse(document.getElementById('widget-config').textContent);
+  const lvl = cfg.gameConfig.levels.find(l=>l.id===currentLevel);
+  return lvl ? lvl.q_threshold : 0.5;
+}
+
+function buildTools(){
+  const row = document.getElementById('tools-row');
+  row.innerHTML = '';
+  const cfg = JSON.parse(document.getElementById('widget-config').textContent);
+  const lvl = cfg.gameConfig.levels.find(l=>l.id===currentLevel);
+  levelTools = lvl ? lvl.tool_limits : {};
+  for(const key in TOOLS){
+    if(!levelTools[key]) continue;
+    const t = TOOLS[key];
+    const wrap = document.createElement('div'); wrap.className='tool-slot';
+    const el = document.createElement('div'); el.className='tool-item'; el.dataset.tool=key;
+    el.style.borderColor = t.color;
+    el.innerHTML = t.icon;
+    const cnt = document.createElement('span'); cnt.className='tool-count'; cnt.textContent=levelTools[key];
+    el.appendChild(cnt);
+    const lbl = document.createElement('div'); lbl.className='tool-label'; lbl.textContent=t.name;
+    wrap.appendChild(el); wrap.appendChild(lbl);
+    row.appendChild(wrap);
+
+    // custom drag
+    el.addEventListener('pointerdown', onToolPointerDown);
+  }
+}
+
+function onToolPointerDown(e){
+  e.preventDefault();
+  const type = e.currentTarget.dataset.tool;
+  if(!levelTools[type]) return;
+  draggedType = type;
+  ghostEl = document.createElement('div');
+  ghostEl.className = 'ghost';
+  ghostEl.textContent = TOOLS[type].icon;
+  ghostEl.style.left = (e.clientX - 30) + 'px';
+  ghostEl.style.top = (e.clientY - 30) + 'px';
+  document.body.appendChild(ghostEl);
+  const move = (ev)=>{ ghostEl.style.left = (ev.clientX - 30) + 'px'; ghostEl.style.top = (ev.clientY - 30) + 'px'; };
+  const up = (ev)=>{
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    if(ghostEl){ ghostEl.remove(); ghostEl=null; }
+    handleDrop(ev.clientX, ev.clientY, type);
+    draggedType = null;
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
+
+function handleDrop(x, y, type){
+  // find cell under drop
+  const cell = document.elementFromPoint(x, y);
+  if(!cell || !cell.classList.contains('cell')) return;
+  const r = parseInt(cell.dataset.r), i = parseInt(cell.dataset.i), j = parseInt(cell.dataset.j);
+  if(isNaN(r)) return;
+  if(levelTools[type] <= 0) return;
+
+  const t = TOOLS[type];
+  if(t.h !== undefined){
+    fields[r][i][j] += t.h;
+  } else if (t.j_mod !== undefined){
+    // Modify coupling locally: affect right and down bonds from (i,j) if exist, and left/up from neighbors
+    // Simplification: store bond modifiers in a separate bondField? Instead, modify J directly for this level instance (ok since it's a game)
+    if(J[i][j].r !== undefined) J[i][j].r += t.j_mod;
+    if(J[i][j].d !== undefined) J[i][j].d += t.j_mod;
+    if(j>0 && J[i][j-1].r !== undefined) J[i][j-1].r += t.j_mod;
+    if(i>0 && J[i-1][j].d !== undefined) J[i-1][j].d += t.j_mod;
+  }
+  levelTools[type]--;
+  buildTools(); // refresh counts
+  renderGridDOM();
+  // subtle feedback
+  cell.style.transform = 'scale(1.15)'; setTimeout(()=>cell.style.transform='scale(1)', 150);
+}
+
+// =========================
+// Game Loop
+// =========================
+function startAnnealing(){
+  if(gameState === 'annealing') return;
+  gameState = 'annealing'; temp = MAX_TEMP; energyHistory = [[],[],[]];
+  annealStartTime = Date.now();
+  document.getElementById('anneal-state').textContent = '退火中 (Annealing)…';
+  document.getElementById('anneal-btn').disabled = true;
+  gameLoop();
+}
+
+function gameLoop(){
+  if(isPaused){
+    animFrameId = requestAnimationFrame(gameLoop); return;
+  }
+  if(gameState !== 'annealing'){
+    cancelAnimationFrame(animFrameId); animFrameId = null; return;
+  }
+
+  // Monte Carlo sweeps
+  for(let step=0; step<STEPS_PER_FRAME; step++){
+    for(let r=0;r<REPLICAS;r++){
+      const i = Math.floor(Math.random()*GRID_N);
+      const j = Math.floor(Math.random()*GRID_N);
+      const hloc = computeLocalField(r,i,j);
+      const s = spins[r][i][j];
+      const deltaE = 2 * s * hloc; // flipping s -> -s
+      if(deltaE < 0 || Math.random() < Math.exp(-deltaE / temp)){
+        spins[r][i][j] = -s;
+      }
+    }
+    temp *= COOL_RATE;
+    if(temp < MIN_TEMP) temp = MIN_TEMP;
+  }
+
+  for(let r=0;r<REPLICAS;r++) energyHistory[r].push(computeEnergy(r));
+  if(energyHistory[0].length > 400) { energyHistory[0].shift(); energyHistory[1].shift(); energyHistory[2].shift(); }
+
+  updateGridVisuals();
+  updateQMeter();
+  drawEnergyChart();
+
+  if(temp <= MIN_TEMP + 0.001){
+    // near frozen, check success after a small settling
+    finishAnnealing();
+    return;
+  }
+  animFrameId = requestAnimationFrame(gameLoop);
+}
+
+function finishAnnealing(){
+  cancelAnimationFrame(animFrameId); animFrameId = null;
+  gameState = 'done';
+  document.getElementById('anneal-state').textContent = '退火完成';
+  document.getElementById('anneal-btn').disabled = false;
+  updateGridVisuals();
+  evaluateResult();
+}
+
+function evaluateResult(){
+  const q01 = Math.abs(computeOverlap(0,1));
+  const q02 = Math.abs(computeOverlap(0,2));
+  const q12 = Math.abs(computeOverlap(1,2));
+  const th = getQThreshold();
+  const allDifferent = (q01 < th) && (q02 < th) && (q12 < th);
+  const allOrdered = [0,1,2].every(r => computeOrderedness(r) > 0.8);
+
+  const timeUsed = (Date.now() - annealStartTime) / 1000;
+  let score = 0, badges = [];
+  const title = document.getElementById('msg-title');
+  const body = document.getElementById('msg-body');
+  const scoreEl = document.getElementById('msg-score');
+  const badgeEl = document.getElementById('msg-badges');
+
+  if(allDifferent && allOrdered){
+    score += 10; // correctPoints
+    if(timeUsed < 8) score += 5; // speed bonus
+    if(th === 0.35) score += 5; // parisi depth bonus
+    totalScore += score;
+    saveProgress();
+    title.textContent = '🎉 对称破缺成功！';
+    title.style.color = '#69f0ae';
+    body.innerHTML = '复本间重叠 <span style="color:#69f0ae;">q</span> 已降至阈值以下，系统成功坍缩到不同的<span class="term-badge">纯态 (Pure States)</span>。虚假对称已被打破！';
+    badges.push('<span class="badge badge-gold">复本对称破缺 (RSB)</span>');
+    if(timeUsed < 8) badges.push('<span class="badge badge-ice">极速退火</span>');
+    document.getElementById('next-btn').style.display = '';
+  } else if (allOrdered && !allDifferent) {
+    title.textContent = '⚠️ 仍处于复本对称相';
+    title.style.color = '#ffd54f';
+    body.innerHTML = '所有复本过于相似（高 q 重叠）。你只是找到了同一个<span class="term-badge">纯态</span>的多个拷贝。<br><br>提示：给不同复本施加<span style="color:#ff8a65;">不同</span>的约束，才能揭开不同的低能谷。';
+    score = 0;
+    document.getElementById('next-btn').style.display = 'none';
+  } else {
+    title.textContent = '❌ 陷入玻璃态';
+    title.style.color = '#ff8a80';
+    body.innerHTML = '系统未能达到低能有序结构（局部阻挫过强或约束不足）。尝试调整<span class="term-badge">耦合 (Coupling)</span>与场的分布。';
+    score = 0;
+    document.getElementById('next-btn').style.display = 'none';
+  }
+
+  scoreEl.textContent = '得分：' + score + '（总计：' + totalScore + '）';
+  badgeEl.innerHTML = badges.join('');
+  document.getElementById('score-display').textContent = totalScore;
+  document.getElementById('overlay-msg').style.display = 'flex';
+}
+
+// =========================
+// Level Management
+// =========================
+function initLevel(lvl){
+  currentLevel = lvl;
+  const cfg = JSON.parse(document.getElementById('widget-config').textContent);
+  const levelCfg = cfg.gameConfig.levels.find(l=>l.id===lvl);
+  document.getElementById('level-num').textContent = lvl;
+  document.getElementById('level-desc').textContent = levelCfg ? levelCfg.name + ' ' + (levelCfg.difficulty===1?'(入门)':levelCfg.difficulty===2?'(进阶)':'(专家)') : '自定义';
+  gameState = 'setup';
+  isPaused = false;
+  temp = MAX_TEMP;
+  energyHistory = [[],[],[]];
+  document.getElementById('anneal-state').textContent = '配置阶段';
+  document.getElementById('anneal-btn').disabled = false;
+  generateJ(lvl);
+  initSpins();
+  buildTools();
+  renderGridDOM();
+  updateQMeter();
+  if(ctx) ctx.clearRect(0,0,canvasEl.width, canvasEl.height);
+}
+
+function resetLevel(){
+  if(animFrameId){ cancelAnimationFrame(animFrameId); animFrameId=null; }
+  initLevel(currentLevel);
+  hideOverlay();
+}
+
+function nextLevel(){
+  const cfg = JSON.parse(document.getElementById('widget-config').textContent);
+  const maxLvl = cfg.gameConfig.levels.length;
+  if(currentLevel < maxLvl){
+    initLevel(currentLevel+1);
+  } else {
+    initLevel(1); // loop or show end
+  }
+  hideOverlay();
+}
+
+function showLevels(){
+  const cfg = JSON.parse(document.getElementById('widget-config').textContent);
+  const box = document.getElementById('level-dots'); box.innerHTML = '';
+  cfg.gameConfig.levels.forEach(l=>{
+    const d = document.createElement('div'); d.className='level-dot'+(l.id<=unlockedLevel?' active':''); d.textContent=l.id;
+    d.onclick = ()=>{ if(l.id<=unlockedLevel){ currentLevel=l.id; startGameDirect(); } };
+    box.appendChild(d);
+  });
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('level-screen').style.display='flex';
+}
+
+function backToStart(){
+  document.getElementById('level-screen').style.display='none';
+  document.getElementById('start-screen').style.display='flex';
+}
+
+function backToMenu(){
+  if(animFrameId){ cancelAnimationFrame(animFrameId); animFrameId=null; }
+  gameState='setup';
+  document.getElementById('game-container').style.display='none';
+  document.getElementById('start-screen').style.display='flex';
+}
+
+function hideOverlay(){ document.getElementById('overlay-msg').style.display='none'; }
+
+// =========================
+// Storage
+// =========================
+function saveProgress(){
+  try{
+    const data = JSON.parse(localStorage.getItem('rsb-architect')||'{}');
+    if(currentLevel >= (data.unlocked||1)) data.unlocked = currentLevel+1;
+    if(data.unlocked>3) data.unlocked=3;
+    data.score = (data.score||0) + 10; // simplistic total
+    localStorage.setItem('rsb-architect', JSON.stringify(data));
+    unlockedLevel = Math.max(unlockedLevel, data.unlocked);
+  }catch(e){}
+}
+
+function loadProgress(){
+  try{
+    const data = JSON.parse(localStorage.getItem('rsb-architect')||'{}');
+    unlockedLevel = Math.max(1, Math.min(3, data.unlocked||1));
+  }catch(e){ unlockedLevel=1; }
+}
+
+// =========================
+// Start / Pause
+// =========================
+function startGame(){
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('level-screen').style.display='none';
+  document.getElementById('game-container').style.display='flex';
+  canvasEl = document.getElementById('energy-canvas');
+  ctx = canvasEl.getContext('2d');
+  // high-dpi
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvasEl.getBoundingClientRect();
+  canvasEl.width = rect.width * dpr; canvasEl.height = rect.height * dpr;
+  ctx.scale(dpr,dpr);
+  loadProgress();
+  initLevel(currentLevel);
+}
+
+function startGameDirect(){ startGame(); }
+
+function togglePause(){
+  if(gameState !== 'annealing') return;
+  isPaused = !isPaused;
+  document.getElementById('anneal-state').textContent = isPaused ? '已暂停' : '退火中 (Annealing)…';
+}
+
+// Global expose for inline onclick
+window.startGame = startGame;
+window.showLevels = showLevels;
+window.backToStart = backToStart;
+window.startAnnealing = startAnnealing;
+window.resetLevel = resetLevel;
+window.backToMenu = backToMenu;
+window.togglePause = togglePause;
+window.nextLevel = nextLevel;
+window.hideOverlay = hideOverlay;
+
+// Init config read and initial state
+document.addEventListener('DOMContentLoaded', ()=>{
+  // ensure canvases sized
+  window.addEventListener('resize', ()=>{
+    if(canvasEl){
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvasEl.getBoundingClientRect();
+      canvasEl.width = rect.width * dpr; canvasEl.height = rect.height * dpr;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      drawEnergyChart();
+    }
+  });
+});
+</script>
+</body>
+</html>

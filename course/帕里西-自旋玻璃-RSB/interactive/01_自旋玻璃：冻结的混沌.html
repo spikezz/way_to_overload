@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>自旋玻璃相变模拟 | Spin Glass Phase Transition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --up-spin: #3B82F6;
+      --down-spin: #EF4444;
+      --glass-purple: #8B5CF6;
+      --glass-pink: #EC4899;
+      --ferro-cyan: #06B6D4;
+      --paramag-green: #10B981;
+      --bg-dark: #0F172A;
+      --panel-bg: #1E293B;
+      --border-color: #334155;
+    }
+
+    * { 
+      font-family: 'Noto Sans SC', sans-serif; 
+      touch-action: manipulation; 
+    }
+
+    body { 
+      background-color: var(--bg-dark); 
+      color: #F8FAFC; 
+      overflow: hidden; 
+    }
+
+    .mono { 
+      font-family: 'JetBrains Mono', monospace; 
+    }
+
+    /* Custom range slider styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--border-color);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--glass-purple);
+      border: 2px solid #fff;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+      transition: transform 0.1s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--glass-purple);
+      border: 2px solid #fff;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+    }
+
+    .spin-cell {
+      transition: background-color 0.3s ease, transform 0.5s ease;
+      border-radius: 4px;
+    }
+
+    .energy-bar-container {
+      background: var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .energy-bar {
+      transition: height 0.3s ease, background-color 0.5s ease;
+      border-radius: 4px 4px 0 0;
+    }
+
+    .preset-btn {
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preset-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .preset-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .preset-btn:hover::after {
+      opacity: 1;
+    }
+
+    /* Canvas and overlays */
+    #sim-canvas {
+      image-rendering: pixelated;
+      touch-action: none;
+    }
+
+    .info-tooltip {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .info-trigger:hover + .info-tooltip,
+    .info-trigger:focus + .info-tooltip {
+      opacity: 1;
+    }
+
+    .glass-indicator {
+      animation: pulse-glass 2s infinite;
+    }
+
+    @keyframes pulse-glass {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes spin-flip {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(180deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .main-btn {
+      transition: all 0.3s;
+      min-height: 48px;
+    }
+
+    .main-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Scrollbar styling */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+
+    .stat-card {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      transition: border-color 0.3s;
+    }
+
+    .phase-badge {
+      transition: all 0.5s;
+    }
+
+    /* Canvas glow effect */
+    .canvas-container {
+      position: relative;
+    }
+    .canvas-container::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.1));
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Freeze progress bar */
+    .freeze-track {
+      background: var(--border-color);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .freeze-fill {
+      transition: width 0.5s ease;
+      border-radius: 999px;
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+
+  <!-- Widget Config (embedded JSON) -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "spin_glass_phase_transition",
+    "description": "交互式模拟二维晶格上的自旋玻璃（Edwards-Anderson模型）。拖动滑块实时改变温度与无序强度，观察自旋构型从顺磁到铁磁再到玻璃态的转变，直观感受能量景观的崎岖化。",
+    "variables": [
+      {
+        "name": "temperature",
+        "label": "温度 Temperature",
+        "min": 0.1,
+        "max": 5.0,
+        "default": 2.27,
+        "step": 0.01,
+        "unit": "T/J"
+      },
+      {
+        "name": "disorder_strength",
+        "label": "无序强度 Disorder",
+        "min": 0,
+        "max": 3.0,
+        "default": 0,
+        "step": 0.01,
+        "unit": "ΔJ/J"
+      },
+      {
+        "name": "external_field",
+        "label": "外磁场 External Field",
+        "min": -2.0,
+        "max": 2.0,
+        "default": 0,
+        "step": 0.01,
+        "unit": "H/J"
+      }
+    ],
+    "presets": [
+      {
+        "name": "顺磁态 Paramagnetic",
+        "description": "高温无序：自旋自由翻转，无长程关联",
+        "variables": { "temperature": 3.5, "disorder_strength": 0.0, "external_field": 0.0 }
+      },
+      {
+        "name": "铁磁态 Ferromagnetic",
+        "description": "低温有序：所有自旋同向排列，能量最低",
+        "variables": { "temperature": 0.5, "disorder_strength": 0.0, "external_field": 0.0 }
+      },
+      {
+        "name": "自旋玻璃 Spin Glass",
+        "description": "低温强无序：自旋被冻结在随机方向，能量景观崎岖",
+        "variables": { "temperature": 0.3, "disorder_strength": 2.0, "external_field": 0.0 }
+      },
+      {
+        "name": "冻结前沿 Freezing",
+        "description": "临界温度附近：部分冻结，部分仍活跃",
+        "variables": { "temperature": 1.2, "disorder_strength": 1.5, "external_field": 0.0 }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Control Panel -->
+  <aside id="controls" class="w-full md:w-[340px] shrink-0 bg-[#1E293B] border-r border-[#334155] flex flex-col overflow-hidden z-20">
+    <div class="p-4 md:p-5 flex-1 overflow-y-auto custom-scroll">
+      <!-- Header -->
+      <header class="mb-5">
+        <h1 class="text-lg md:text-xl font-bold text-white leading-tight">
+          自旋玻璃相变
+          <span class="block text-xs md:text-sm text-[#8B5CF6] font-medium mt-1">Spin Glass Phase Transition</span>
+        </h1>
+        <p class="text-xs text-[#94A3B8] mt-2 leading-relaxed">
+          探索 Edwards-Anderson 模型：温度与无序如何塑造能量景观，驱动相变。
+        </p>
+      </header>
+
+      <!-- Phase Indicator -->
+      <div class="mb-4 p-3 rounded-lg bg-[#0F172A] border border-[#334155]">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-[#94A3B8]">当前相 Current Phase</span>
+          <div class="relative">
+            <button class="info-trigger text-[#94A3B8] hover:text-white w-5 h-5 flex items-center justify-center rounded-full bg-[#334155] text-xs cursor-help" tabindex="0">
+              ?
+            </button>
+            <div class="info-tooltip absolute right-0 top-6 w-56 p-3 bg-[#0F172A] border border-[#334155] rounded-lg text-xs text-[#CBD5E1] z-50 shadow-xl">
+              <strong>相变阶段说明：</strong><br>
+              <span class="text-[#10B981]">● 顺磁态</span>：高温，自旋随机<br>
+              <span class="text-[#06B6D4]">● 铁磁态</span>：低温无序，全局有序<br>
+              <span class="text-[#EC4899]">● 自旋玻璃</span>：低温强无序，冻结崎岖
+            </div>
+          </div>
+        </div>
+        <div id="phase-display" class="phase-badge text-sm font-bold text-center py-2 rounded bg-[#334155] text-[#94A3B8]">
+          顺磁态 Paramagnetic
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <span class="text-xs text-[#94A3B8] shrink-0">冻结度 Freezing:</span>
+          <div class="freeze-track flex-1 h-2">
+            <div id="freeze-bar" class="freeze-fill h-full bg-[#EC4899]" style="width: 0%"></div>
+          </div>
+          <span id="freeze-text" class="text-xs mono text-[#EC4899] w-8 text-right">0%</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="space-y-5 mb-5">
+        <!-- Temperature -->
+        <div class="control-group" id="temperature-group">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+              温度 Temperature
+              <span class="relative">
+                <button class="info-trigger text-[#64748B] hover:text-white text-xs cursor-help" tabindex="0">ⓘ</button>
+                <div class="info-tooltip absolute left-0 top-5 w-48 p-2 bg-[#0F172A] border border-[#334155] rounded text-xs text-[#CBD5E1] z-50">
+                  以 J/k<sub>B</sub> 为单位。高温→无序，低温→有序或冻结。
+                </div>
+              </span>
+            </label>
+            <span id="temperature-display" class="mono text-sm text-[#F59E0B] font-bold">2.27</span>
+          </div>
+          <input type="range" id="temperature-slider" data-var="temperature" min="0.1" max="5.0" step="0.01" value="2.27">
+          <div class="flex justify-between text-[10px] text-[#64748B] mt-1">
+            <span>0.1 (低温)</span>
+            <span>5.0 (高温)</span>
+          </div>
+        </div>
+
+        <!-- Disorder -->
+        <div class="control-group" id="disorder-group">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#EC4899]"></span>
+              无序强度 Disorder
+              <span class="relative">
+                <button class="info-trigger text-[#64748B] hover:text-white text-xs cursor-help" tabindex="0">ⓘ</button>
+                <div class="info-tooltip absolute left-0 top-5 w-48 p-2 bg-[#0F172A] border border-[#334155] rounded text-xs text-[#CBD5E1] z-50">
+                  ΔJ/J：耦合常数的随机涨落幅度。越大→能量景观越崎岖。
+                </div>
+              </span>
+            </label>
+            <span id="disorder_strength-display" class="mono text-sm text-[#EC4899] font-bold">0.00</span>
+          </div>
+          <input type="range" id="disorder_strength-slider" data-var="disorder_strength" min="0" max="3.0" step="0.01" value="0">
+          <div class="flex justify-between text-[10px] text-[#64748B] mt-1">
+            <span>0 (纯净)</span>
+            <span>3.0 (强无序)</span>
+          </div>
+        </div>
+
+        <!-- External Field -->
+        <div class="control-group" id="external_field-group">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#06B6D4]"></span>
+              外磁场 Field
+              <span class="relative">
+                <button class="info-trigger text-[#64748B] hover:text-white text-xs cursor-help" tabindex="0">ⓘ</button>
+                <div class="info-tooltip absolute left-0 top-5 w-48 p-2 bg-[#0F172A] border border-[#334155] rounded text-xs text-[#CBD5E1] z-50">
+                  外磁场 H 会偏置自旋方向。正场→向上偏置。
+                </div>
+              </span>
+            </label>
+            <span id="external_field-display" class="mono text-sm text-[#06B6D4] font-bold">0.00</span>
+          </div>
+          <input type="range" id="external_field-slider" data-var="external_field" min="-2.0" max="2.0" step="0.01" value="0">
+          <div class="flex justify-between text-[10px] text-[#64748B] mt-1">
+            <span>-2.0 (向下)</span>
+            <span>+2.0 (向上)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <button id="start-btn" class="main-btn col-span-2 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-lg py-3 px-4 shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+          <span>启动 Start</span>
+        </button>
+        <button id="reset-btn" class="main-btn bg-[#334155] hover:bg-[#475569] text-white font-medium rounded-lg py-3 px-4 flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span>重置 Reset</span>
+        </button>
+        <button id="randomize-btn" class="main-btn bg-[#334155] hover:bg-[#475569] text-white font-medium rounded-lg py-3 px-4 flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          <span>随机 Random</span>
+        </button>
+      </div>
+
+      <!-- Presets -->
+      <div class="mb-4">
+        <h3 class="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">预设场景 Presets</h3>
+        <div class="grid grid-cols-1 gap-2">
+          <button id="preset-paramagnetic" class="preset-btn text-left px-3 py-2.5 rounded-lg bg-[#0F172A] border border-[#334155] hover:border-[#10B981] text-sm">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#10B981] shrink-0"></span>
+              <div>
+                <div class="font-medium text-[#10B981]">顺磁态 Paramagnetic</div>
+                <div class="text-[10px] text-[#64748B]">高温无序：自旋自由翻转</div>
+              </div>
+            </div>
+          </button>
+          <button id="preset-ferromagnetic" class="preset-btn text-left px-3 py-2.5 rounded-lg bg-[#0F172A] border border-[#334155] hover:border-[#06B6D4] text-sm">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#06B6D4] shrink-0"></span>
+              <div>
+                <div class="font-medium text-[#06B6D4]">铁磁态 Ferromagnetic</div>
+                <div class="text-[10px] text-[#64748B]">低温有序：全局同向排列</div>
+              </div>
+            </div>
+          </button>
+          <button id="preset-spinglass" class="preset-btn text-left px-3 py-2.5 rounded-lg bg-[#0F172A] border border-[#334155] hover:border-[#EC4899] text-sm">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#EC4899] shrink-0"></span>
+              <div>
+                <div class="font-medium text-[#EC4899]">自旋玻璃 Spin Glass</div>
+                <div class="text-[10px] text-[#64748B]">低温强无序：崎岖冻结</div>
+              </div>
+            </div>
+          </button>
+          <button id="preset-freezing" class="preset-btn text-left px-3 py-2.5 rounded-lg bg-[#0F172A] border border-[#334155] hover:border-[#F59E0B] text-sm">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#F59E0B] shrink-0"></span>
+              <div>
+                <div class="font-medium text-[#F59E0B]">冻结前沿 Freezing</div>
+                <div class="text-[10px] text-[#64748B]">临界温度附近：部分冻结</div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="p-3 rounded-lg bg-[#0F172A] border border-[#334155] text-xs">
+        <div class="font-bold text-[#94A3B8] mb-2">图例 Legend</div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded bg-[#3B82F6] flex items-center justify-center"><span class="text-[8px] text-white">↑</span></div>
+            <span class="text-[#CBD5E1]">自旋向上 Spin Up (+1)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded bg-[#EF4444] flex items-center justify-center"><span class="text-[8px] text-white">↓</span></div>
+            <span class="text-[#CBD5E1]">自旋向下 Spin Down (-1)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-1 bg-[#10B981] rounded"></div>
+            <span class="text-[#CBD5E1]">铁磁耦合 FM (J&gt;0)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-1 bg-[#EC4899] rounded"></div>
+            <span class="text-[#CBD5E1]">反铁磁耦合 AFM (J&lt;0)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Canvas Area -->
+  <main class="flex-1 flex flex-col min-h-0 relative bg-[#0F172A]">
+    <!-- Top HUD -->
+    <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap gap-2 pointer-events-none">
+      <div class="stat-card px-3 py-1.5 rounded-lg text-xs">
+        <span class="text-[#64748B]">温度 T:</span>
+        <span id="hud-temp" class="mono text-[#F59E0B] font-bold ml-1">2.27</span>
+        <span class="text-[#64748B]">J/k<sub>B</sub></span>
+      </div>
+      <div class="stat-card px-3 py-1.5 rounded-lg text-xs">
+        <span class="text-[#64748B]">能量 E:</span>
+        <span id="hud-energy" class="mono text-white font-bold ml-1">--</span>
+        <span class="text-[#64748B]">/site</span>
+      </div>
+      <div class="stat-card px-3 py-1.5 rounded-lg text-xs">
+        <span class="text-[#64748B]">比热 C:</span>
+        <span id="hud-heat" class="mono text-[#EC4899] font-bold ml-1">--</span>
+      </div>
+      <div class="stat-card px-3 py-1.5 rounded-lg text-xs">
+        <span class="text-[#64748B]">磁化 M:</span>
+        <span id="hud-magnet" class="mono text-[#06B6D4] font-bold ml-1">--</span>
+      </div>
+      <div class="stat-card px-3 py-1.5 rounded-lg text-xs hidden md:block">
+        <span class="text-[#64748B]">冻结 Tf≈</span>
+        <span id="hud-freeze" class="mono text-[#8B5CF6] font-bold ml-1">--</span>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-container flex-1 min-h-[300px] relative m-2 md:m-4 rounded-xl overflow-hidden bg-[#020617]">
+      <canvas id="sim-canvas" class="w-full h-full block"></canvas>
+
+      <!-- Overlay: Energy Landscape Hint -->
+      <div id="landscape-overlay" class="absolute bottom-3 right-3 w-32 h-24 bg-[#0F172A]/90 border border-[#334155] rounded-lg p-2 z-10 pointer-events-none transition-opacity duration-500">
+        <div class="text-[10px] text-[#94A3B8] mb-1 text-center">能量景观 Energy Landscape</div>
+        <canvas id="landscape-canvas" width="120" height="70"></canvas>
+      </div>
+
+      <!-- Status overlay -->
+      <div id="status-overlay" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20 hidden">
+        <div class="bg-[#0F172A]/90 border border-[#8B5CF6] rounded-xl px-6 py-3 text-center backdrop-blur-sm">
+          <div id="status-text" class="text-lg font-bold text-[#8B5CF6]">已暂停 Paused</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile collapse toggle (shown only on small screens) -->
+    <button id="toggle-controls" class="md:hidden fixed bottom-4 right-4 z-30 w-12 h-12 bg-[#8B5CF6] rounded-full shadow-lg flex items-center justify-center text-white">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+    </button>
+  </main>
+
+  <script>
+    // =====================
+    // SIMULATION ENGINE
+    // =====================
+    class SpinGlassSimulation {
+      constructor() {
+        this.canvas = document.getElementById('sim-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.landscapeCanvas = document.getElementById('landscape-canvas');
+        this.landscapeCtx = this.landscapeCanvas.getContext('2d');
+
+        this.L = 32; // lattice size
+        this.spins = []; // -1 or +1
+        this.couplings = []; // J_ij
+        this.energies = []; // local energy per site
+        this.flipAttempts = 0;
+        this.acceptedFlips = 0;
+
+        // Variables
+        this.temperature = 2.27;
+        this.disorderStrength = 0;
+        this.externalField = 0;
+
+        // State
+        this.running = false;
+        this.paused = false;
+        this.ended = false;
+        this.steps = 0;
+        this.totalEnergy = 0;
+        this.magnetization = 0;
+        this.energyHistory = [];
+        this.lastFrameTime = 0;
+        this.sweepInterval = 16; // ms between Monte Carlo sweeps
+        this.lastSweepTime = 0;
+
+        // Animation
+        this.flipQueue = []; // [{x, y, from, to, progress}]
+        this.highlightSites = []; // sites to highlight
+
+        this.resize();
+        this.initLattice();
+        this.bindEvents();
+        this.draw();
+      }
+
+      resize() {
+        const container = this.canvas.parentElement;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.canvas.width = container.clientWidth * dpr;
+        this.canvas.height = container.clientHeight * dpr;
+        this.ctx.scale(dpr, dpr);
+        this.width = container.clientWidth;
+        this.height = container.clientHeight;
+      }
+
+      initLattice() {
+        this.spins = new Array(this.L * this.L);
+        this.couplings = new Array(this.L * this.L);
+        this.energies = new Array(this.L * this.L);
+
+        // Random initial spins
+        for (let i = 0; i < this.L * this.L; i++) {
+          this.spins[i] = Math.random() > 0.5 ? 1 : -1;
+        }
+
+        this.generateCouplings();
+        this.computeEnergy();
+        this.steps = 0;
+        this.energyHistory = [];
+        this.flipQueue = [];
+      }
+
+      generateCouplings() {
+        // Edwards-Anderson model: J_ij with disorder
+        for (let i = 0; i < this.L * this.L; i++) {
+          const x = i % this.L;
+          const y = Math.floor(i / this.L);
+          
+          // We store couplings to right and down neighbor to avoid double counting
+          // For visualization, we store a local disorder value
+          this.couplings[i] = {
+            right: this.disorderStrength > 0 
+              ? 1 + this.disorderStrength * (2 * Math.random() - 1)
+              : 1,
+            down: this.disorderStrength > 0
+              ? 1 + this.disorderStrength * (2 * Math.random() - 1)
+              : 1
+          };
+        }
+      }
+
+      computeEnergy() {
+        let E = 0;
+        let M = 0;
+
+        for (let i = 0; i < this.L * this.L; i++) {
+          const x = i % this.L;
+          const y = Math.floor(i / this.L);
+          const s = this.spins[i];
+          M += s;
+
+          // Right neighbor
+          const rx = (x + 1) % this.L;
+          const ry = y;
+          const ri = ry * this.L + rx;
+          E -= 0.5 * this.couplings[i].right * s * this.spins[ri];
+
+          // Down neighbor
+          const dx = x;
+          const dy = (y + 1) % this.L;
+          const di = dy * this.L + dx;
+          E -= 0.5 * this.couplings[i].down * s * this.spins[di];
+
+          // External field
+          E -= this.externalField * s;
+        }
+
+        this.totalEnergy = E / (this.L * this.L);
+        this.magnetization = Math.abs(M) / (this.L * this.L);
+
+        // Compute local energy for each site
+        for (let i = 0; i < this.L * this.L; i++) {
+          this.energies[i] = this.localEnergy(i);
+        }
+      }
+
+      localEnergy(i) {
+        const x = i % this.L;
+        const y = Math.floor(i / this.L);
+        const s = this.spins[i];
+        let e = 0;
+
+        // Right
+        const rx = (x + 1) % this.L;
+        const ri = y * this.L + rx;
+        e -= this.couplings[i].right * s * this.spins[ri];
+
+        // Left
+        const lx = (x - 1 + this.L) % this.L;
+        const li = y * this.L + lx;
+        e -= this.couplings[li].right * s * this.spins[li]; // left's right coupling
+
+        // Down
+        const dy = (y + 1) % this.L;
+        const di = dy * this.L + x;
+        e -= this.couplings[i].down * s * this.spins[di];
+
+        // Up
+        const uy = (y - 1 + this.L) % this.L;
+        const ui = uy * this.L + x;
+        e -= this.couplings[ui].down * s * this.spins[ui]; // up's down coupling
+
+        e -= this.externalField * s;
+
+        return e;
+      }
+
+      mcSweep() {
+        if (!this.running || this.paused) return;
+
+        const n = this.L * this.L;
+        let flips = 0;
+
+        for (let k = 0; k < n; k++) {
+          const i = Math.floor(Math.random() * n);
+          const x = i % this.L;
+          const y = Math.floor(i / this.L);
+          const s = this.spins[i];
+          const eOld = this.localEnergy(i);
+
+          // Trial flip
+          this.spins[i] *= -1;
+          const eNew = this.localEnergy(i);
+          const deltaE = eNew - eOld;
+
+          // Metropolis criterion
+          if (deltaE <= 0 || Math.random() < Math.exp(-deltaE / this.temperature)) {
+            // Accept flip
+            flips++;
+            this.energies[i] = eNew;
+            // Update neighbor energies
+            const rx = (x + 1) % this.L;
+            const ri = y * this.L + rx;
+            this.energies[ri] = this.localEnergy(ri);
+
+            const lx = (x - 1 + this.L) % this.L;
+            const li = y * this.L + lx;
+            this.energies[li] = this.localEnergy(li);
+
+            const dy = (y + 1) % this.L;
+            const di = dy * this.L + x;
+            this.energies[di] = this.localEnergy(di);
+
+            const uy = (y - 1 + this.L) % this.L;
+            const ui = uy * this.L + x;
+            this.energies[ui] = this.localEnergy(ui);
+
+            // Add to flip queue for animation
+            this.flipQueue.push({ x, y, from: -s, to: s, progress: 0 });
+            if (this.flipQueue.length > 20) this.flipQueue.shift();
+          } else {
+            // Reject flip
+            this.spins[i] *= -1;
+          }
+        }
+
+        this.steps++;
+        this.computeEnergy();
+        this.energyHistory.push(this.totalEnergy);
+        if (this.energyHistory.length > 200) this.energyHistory.shift();
+      }
+
+      getPhase() {
+        if (this.temperature > 2.5) {
+          return { name: '顺磁态 Paramagnetic', color: '#10B981', desc: '高温无序：热涨落主导，自旋自由翻转' };
+        }
+        if (this.disorderStrength < 0.3 && this.temperature < 1.5) {
+          return { name: '铁磁态 Ferromagnetic', color: '#06B6D4', desc: '低温有序：全局自发磁化' };
+        }
+        if (this.temperature < 1.5 && this.disorderStrength > 0.8) {
+          return { name: '自旋玻璃 Spin Glass', color: '#EC4899', desc: '低温强无序：自旋冻结在随机方向' };
+        }
+        if (this.temperature < 2.0 && this.disorderStrength > 0.3) {
+          return { name: '冻结前沿 Freezing', color: '#F59E0B', desc: '部分冻结，部分活跃：崎岖能量景观' };
+        }
+        return { name: '过渡态 Transition', color: '#8B5CF6', desc: '正在发生相变...' };
+      }
+
+      getFreezeFraction() {
+        // Estimate freeze fraction by looking at how many spins haven't flipped recently
+        // Simplified: low T + high disorder = high freeze
+        let freeze = 0;
+        if (this.temperature < 1.0 && this.disorderStrength > 1.0) {
+          freeze = Math.min(1, (1.0 - this.temperature) * (this.disorderStrength) * 0.5);
+        } else if (this.temperature < 2.0) {
+          freeze = Math.min(0.8, (2.0 - this.temperature) * 0.2 * this.disorderStrength);
+        }
+        return freeze;
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        const w = this.width;
+        const h = this.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Background
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(0, 0, w, h);
+
+        const cellSize = Math.min(w, h) / this.L;
+        const offsetX = (w - cellSize * this.L) / 2;
+        const offsetY = (h - cellSize * this.L) / 2;
+
+        // Draw grid background
+        ctx.strokeStyle = '#1E293B';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= this.L; i++) {
+          ctx.beginPath();
+          ctx.moveTo(offsetX + i * cellSize, offsetY);
+          ctx.lineTo(offsetX + i * cellSize, offsetY + this.L * cellSize);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(offsetX, offsetY + i * cellSize);
+          ctx.lineTo(offsetX + this.L * cellSize, offsetY + i * cellSize);
+          ctx.stroke();
+        }
+
+        // Draw couplings (bonds)
+        if (this.disorderStrength > 0.1) {
+          for (let i = 0; i < this.L * this.L; i++) {
+            const x = i % this.L;
+            const y = Math.floor(i / this.L);
+
+            // Right bond
+            if (x < this.L - 1) {
+              const jCoupling = this.couplings[i].right;
+              const midX = offsetX + (x + 0.5) * cellSize;
+              const midY = offsetY + (y + 0.5) * cellSize;
+              const nextX = offsetX + (x + 1) * cellSize;
+              
+              ctx.beginPath();
+              ctx.moveTo(midX + cellSize * 0.3, midY);
+              ctx.lineTo(nextX - cellSize * 0.3, midY);
+              
+              if (jCoupling > 0) {
+                ctx.strokeStyle = `rgba(16, 185, 129, ${Math.min(1, this.disorderStrength * 0.5)})`;
+              } else {
+                ctx.strokeStyle = `rgba(236, 72, 153, ${Math.min(1, this.disorderStrength * 0.5)})`;
+              }
+              ctx.lineWidth = Math.abs(jCoupling) * 1.5;
+              ctx.stroke();
+            }
+
+            // Down bond
+            if (y < this.L - 1) {
+              const jCoupling = this.couplings[i].down;
+              const midX = offsetX + (x + 0.5) * cellSize;
+              const midY = offsetY + (y + 0.5) * cellSize;
+              const nextY = offsetY + (y + 1) * cellSize;
+              
+              ctx.beginPath();
+              ctx.moveTo(midX, midY + cellSize * 0.3);
+              ctx.lineTo(midX, nextY - cellSize * 0.3);
+              
+              if (jCoupling > 0) {
+                ctx.strokeStyle = `rgba(16, 185, 129, ${Math.min(1, this.disorderStrength * 0.5)})`;
+              } else {
+                ctx.strokeStyle = `rgba(236, 72, 153, ${Math.min(1, this.disorderStrength * 0.5)})`;
+              }
+              ctx.lineWidth = Math.abs(jCoupling) * 1.5;
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Draw spins
+        for (let i = 0; i < this.L * this.L; i++) {
+          const x = i % this.L;
+          const y = Math.floor(i / this.L);
+          const spin = this.spins[i];
+          const cx = offsetX + (x + 0.5) * cellSize;
+          const cy = offsetY + (y + 0.5) * cellSize;
+          const r = cellSize * 0.35;
+
+          // Check if this site is being animated
+          const anim = this.flipQueue.find(f => f.x === x && f.y === y);
+          let scale = 1;
+          let rotation = 0;
+          if (anim) {
+            scale = 1 + 0.3 * Math.sin(anim.progress * Math.PI);
+            rotation = anim.progress * Math.PI * (anim.to === 1 ? 1 : -1);
+            anim.progress += 0.1;
+          }
+
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(rotation);
+          ctx.scale(scale, scale);
+
+          if (spin === 1) {
+            ctx.fillStyle = '#3B82F6';
+            ctx.shadowColor = '#3B82F6';
+          } else {
+            ctx.fillStyle = '#EF4444';
+            ctx.shadowColor = '#EF4444';
+          }
+          ctx.shadowBlur = this.running ? 6 : 2;
+
+          // Draw arrow shape
+          ctx.beginPath();
+          const arrowLen = r * 0.9;
+          const arrowW = r * 0.5;
+          if (spin === 1) {
+            ctx.moveTo(0, -arrowLen);
+            ctx.lineTo(arrowW, arrowLen * 0.3);
+            ctx.lineTo(0, arrowLen * 0.1);
+            ctx.lineTo(-arrowW, arrowLen * 0.3);
+          } else {
+            ctx.moveTo(0, arrowLen);
+            ctx.lineTo(arrowW, -arrowLen * 0.3);
+            ctx.lineTo(0, -arrowLen * 0.1);
+            ctx.lineTo(-arrowW, -arrowLen * 0.3);
+          }
+          ctx.closePath();
+          ctx.fill();
+
+          // Draw circle background for visibility
+          ctx.globalCompositeOperation = 'destination-over';
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = spin === 1 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+          ctx.fill();
+
+          ctx.restore();
+        }
+
+        // Draw energy heatmap overlay (subtle)
+        if (this.disorderStrength > 0.5) {
+          for (let i = 0; i < this.L * this.L; i++) {
+            const x = i % this.L;
+            const y = Math.floor(i / this.L);
+            const e = this.energies[i];
+            const intensity = Math.min(1, Math.abs(e) / 4);
+            
+            ctx.fillStyle = e < 0 
+              ? `rgba(16, 185, 129, ${intensity * 0.15})` 
+              : `rgba(245, 158, 11, ${intensity * 0.15})`;
+            ctx.fillRect(
+              offsetX + x * cellSize + 1,
+              offsetY + y * cellSize + 1,
+              cellSize - 2,
+              cellSize - 2
+            );
+          }
+        }
+
+        // Clean up finished animations
+        this.flipQueue = this.flipQueue.filter(f => f.progress < 1);
+
+        // Draw landscape overlay
+        this.drawLandscape();
+      }
+
+      drawLandscape() {
+        const ctx = this.landscapeCtx;
+        const w = this.landscapeCanvas.width;
+        const h = this.landscapeCanvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#0F172A';
+        ctx.fillRect(0, 0, w, h);
+
+        // Draw a conceptual energy landscape
+        const points = 60;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+
+        const ruggedness = Math.min(1, this.disorderStrength / 2.5);
+        const temperature = this.temperature;
+
+        for (let i = 0; i <= points; i++) {
+          const x = (i / points) * w;
+          let y = 0;
+
+          // Base landscape
+          for (let k = 1; k <= 5; k++) {
+            y += Math.sin(i * k * 0.5 + this.steps * 0.01) * (10 / k);
+          }
+
+          // Add ruggedness based on disorder
+          if (ruggedness > 0) {
+            for (let k = 1; k <= 15; k++) {
+              y += Math.sin(i * k * 2 + this.steps * 0.05 * k) * (ruggedness * 8 / Math.sqrt(k));
+            }
+          }
+
+          // Temperature smearing
+          const smear = temperature * 3;
+          y = y + h * 0.4 - smear;
+
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        ctx.lineTo(w, h);
+        ctx.closePath();
+
+        // Gradient fill
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        if (ruggedness > 0.5) {
+          grad.addColorStop(0, 'rgba(236, 72, 153, 0.3)');
+          grad.addColorStop(1, 'rgba(139, 92, 246, 0.1)');
+        } else {
+          grad.addColorStop(0, 'rgba(6, 182, 212, 0.3)');
+          grad.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+        }
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Line
+        ctx.strokeStyle = ruggedness > 0.5 ? '#EC4899' : '#06B6D4';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Current state marker
+        const markerX = w * 0.5;
+        const markerY = h * 0.5 + Math.sin(this.steps * 0.05) * 5;
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#F8FAFC';
+        ctx.fill();
+        ctx.strokeStyle = ruggedness > 0.5 ? '#EC4899' : '#06B6D4';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      update() {
+        const now = performance.now();
+        
+        if (this.running && !this.paused) {
+          if (now - this.lastSweepTime > this.sweepInterval) {
+            this.mcSweep();
+            this.lastSweepTime = now;
+          }
+        }
+
+        this.draw();
+        this.updateHUD();
+        requestAnimationFrame(() => this.update());
+      }
+
+      updateHUD() {
+        const phase = this.getPhase();
+        const phaseDisplay = document.getElementById('phase-display');
+        phaseDisplay.textContent = phase.name;
+        phaseDisplay.style.color = phase.color;
+        phaseDisplay.style.borderColor = phase.color;
+        phaseDisplay.style.backgroundColor = phase.color + '15';
+
+        document.getElementById('hud-temp').textContent = this.temperature.toFixed(2);
+        document.getElementById('hud-energy').textContent = this.totalEnergy.toFixed(3);
+        document.getElementById('hud-magnet').textContent = this.magnetization.toFixed(3);
+
+        // Specific heat (approximate from energy fluctuations)
+        let heat = 0;
+        if (this.energyHistory.length > 10) {
+          const recent = this.energyHistory.slice(-20);
+          const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+          const variance = recent.reduce((a, b) => a + (b - mean) ** 2, 0) / recent.length;
+          heat = (variance / (this.temperature * this.temperature)) * (this.L * this.L);
+        }
+        document.getElementById('hud-heat').textContent = heat.toFixed(2);
+
+        // Freeze temp estimate
+        const tf = this.disorderStrength > 0.3 ? (1 + this.disorderStrength * 0.5).toFixed(2) : '--';
+        document.getElementById('hud-freeze').textContent = tf;
+
+        // Freeze bar
+        const freezeFrac = this.getFreezeFraction();
+        document.getElementById('freeze-bar').style.width = (freezeFrac * 100) + '%';
+        document.getElementById('freeze-text').textContent = Math.round(freezeFrac * 100) + '%';
+
+        // Update slider displays
+        document.getElementById('temperature-display').textContent = this.temperature.toFixed(2);
+        document.getElementById('disorder_strength-display').textContent = this.disorderStrength.toFixed(2);
+        document.getElementById('external_field-display').textContent = this.externalField.toFixed(2);
+      }
+
+      start() {
+        if (this.ended) {
+          this.reset();
+        }
+        this.running = true;
+        this.paused = false;
+        this.ended = false;
+        document.getElementById('start-btn').innerHTML = `
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span>暂停 Pause</span>
+        `;
+        document.getElementById('status-overlay').classList.add('hidden');
+      }
+
+      pause() {
+        this.paused = true;
+        this.running = false;
+        document.getElementById('start-btn').innerHTML = `
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+          <span>继续 Resume</span>
+        `;
+        document.getElementById('status-overlay').classList.remove('hidden');
+        document.getElementById('status-text').textContent = '已暂停 Paused';
+      }
+
+      resume() {
+        this.paused = false;
+        this.running = true;
+        document.getElementById('start-btn').innerHTML = `
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span>暂停 Pause</span>
+        `;
+        document.getElementById('status-overlay').classList.add('hidden');
+      }
+
+      reset() {
+        this.running = false;
+        this.paused = false;
+        this.ended = false;
+        this.steps = 0;
+        this.energyHistory = [];
+        this.flipQueue = [];
+        this.initLattice();
+        document.getElementById('start-btn').innerHTML = `
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+          <span>启动 Start</span>
+        `;
+        document.getElementById('status-overlay').classList.add('hidden');
+        this.draw();
+      }
+
+      randomize() {
+        for (let i = 0; i < this.L * this.L; i++) {
+          this.spins[i] = Math.random() > 0.5 ? 1 : -1;
+        }
+        this.generateCouplings();
+        this.computeEnergy();
+        this.flipQueue = [];
+        this.draw();
+      }
+
+      setVariable(name, value) {
+        if (name === 'temperature') this.temperature = parseFloat(value);
+        if (name === 'disorder_strength') {
+          this.disorderStrength = parseFloat(value);
+          this.generateCouplings();
+          this.computeEnergy();
+        }
+        if (name === 'external_field') {
+          this.externalField = parseFloat(value);
+          this.computeEnergy();
+        }
+        this.updateHUD();
+      }
+
+      applyPreset(temp, disorder, field) {
+        this.temperature = temp;
+        this.disorderStrength = disorder;
+        this.externalField = field;
+        
+        document.getElementById('temperature-slider').value = temp;
+        document.getElementById('disorder_strength-slider').value = disorder;
+        document.getElementById('external_field-slider').value = field;
+        
+        this.generateCouplings();
+        this.reset();
+      }
+
+      bindEvents() {
+        // Sliders
+        document.getElementById('temperature-slider').addEventListener('input', (e) => {
+          this.setVariable('temperature', e.target.value);
+        });
+        document.getElementById('disorder_strength-slider').addEventListener('input', (e) => {
+          this.setVariable('disorder_strength', e.target.value);
+        });
+        document.getElementById('external_field-slider').addEventListener('input', (e) => {
+          this.setVariable('external_field', e.target.value);
+        });
+
+        // Buttons
+        document.getElementById('start-btn').addEventListener('click', () => {
+          if (this.ended) {
+            this.reset();
+            this.start();
+          } else if (this.running) {
+            this.pause();
+          } else if (this.paused) {
+            this.resume();
+          } else {
+            this.start();
+          }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+          this.reset();
+        });
+
+        document.getElementById('randomize-btn').addEventListener('click', () => {
+          this.randomize();
+        });
+
+        // Presets
+        document.getElementById('preset-paramagnetic').addEventListener('click', () => {
+          this.applyPreset(3.5, 0.0, 0.0);
+        });
+        document.getElementById('preset-ferromagnetic').addEventListener('click', () => {
+          this.applyPreset(0.5, 0.0, 0.0);
+        });
+        document.getElementById('preset-spinglass').addEventListener('click', () => {
+          this.applyPreset(0.3, 2.0, 0.0);
+        });
+        document.getElementById('preset-freezing').addEventListener('click', () => {
+          this.applyPreset(1.2, 1.5, 0.0);
+        });
+
+        // Resize
+        window.addEventListener('resize', () => {
+          this.resize();
+          this.draw();
+        });
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+          if (e.code === 'Space') {
+            e.preventDefault();
+            document.getElementById('start-btn').click();
+          }
+          if (e.code === 'KeyR') {
+            e.preventDefault();
+            document.getElementById('reset-btn').click();
+          }
+        });
+
+        // Canvas click to flip spin (interactive)
+        this.canvas.addEventListener('click', (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width / rect.width;
+          const scaleY = this.canvas.height / rect.height;
+          const clickX = (e.clientX - rect.left) * scaleX;
+          const clickY = (e.clientY - rect.top) * scaleY;
+
+          const cellSize = Math.min(this.width, this.height) / this.L;
+          const offsetX = (this.width - cellSize * this.L) / 2;
+          const offsetY = (this.height - cellSize * this.L) / 2;
+
+          const x = Math.floor((clickX - offsetX) / cellSize);
+          const y = Math.floor((clickY - offsetY) / cellSize);
+
+          if (x >= 0 && x < this.L && y >= 0 && y < this.L) {
+            const i = y * this.L + x;
+            this.spins[i] *= -1;
+            this.computeEnergy();
+            this.flipQueue.push({ x, y, from: -this.spins[i], to: this.spins[i], progress: 0 });
+            this.draw();
+          }
+        });
+
+        // Mobile toggle
+        document.getElementById('toggle-controls').addEventListener('click', () => {
+          const controls = document.getElementById('controls');
+          controls.classList.toggle('hidden');
+        });
+
+        // Start animation loop
+        requestAnimationFrame(() => this.update());
+      }
+    }
+
+    // Initialize
+    const sim = new SpinGlassSimulation();
+
+    // =====================
+    // POSTMESSAGE LISTENER (REQUIRED)
+    // =====================
+    window.addEventListener('message', function(event) {
+      const { type, target, state, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (state) {
+            Object.entries(state).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(139, 92, 246, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.outlineOffset = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 50) + 'px; left:' + Math.max(10, rect.left) + 'px; background:rgba(139,92,246,0.95); color:white; padding:10px 14px; border-radius:10px; font-size:13px; z-index:10000; animation:fadeIn 0.3s; max-width:280px; line-height:1.5; box-shadow:0 10px 25px rgba(0,0,0,0.3);';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 5000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse-highlight {
+        0%, 100% { outline-color: rgba(139, 92, 246, 0.8); }
+        50% { outline-color: rgba(139, 92, 246, 0.3); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

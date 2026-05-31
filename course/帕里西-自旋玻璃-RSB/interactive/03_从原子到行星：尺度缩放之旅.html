@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多尺度无序与涨落：复本方法的跨学科之旅</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --nano: #8b5cf6;
+      --micro: #3b82f6;
+      --meso: #10b981;
+      --geo: #f59e0b;
+      --bg-dark: #0f0f1a;
+      --panel-bg: #1a1a2e;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --accent: #8b5cf6;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Glass morphism panels */
+    .glass-panel {
+      background: rgba(26, 26, 46, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .glass-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    /* Custom slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    input[type="range"]:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid var(--bg-dark);
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid var(--bg-dark);
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+    }
+
+    /* Touch targets */
+    .touch-btn {
+      min-height: 44px;
+      min-width: 44px;
+      touch-action: manipulation;
+    }
+
+    /* Scale level cards */
+    .scale-card {
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .scale-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at var(--glow-x, 50%) var(--glow-y, 50%), var(--glow-color, transparent) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .scale-card:hover::before {
+      opacity: 0.3;
+    }
+
+    .scale-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 30px rgba(139, 92, 246, 0.2), inset 0 0 20px rgba(139, 92, 246, 0.05);
+    }
+
+    .scale-card.active::before {
+      opacity: 0.5;
+    }
+
+    /* Glow animation for active state */
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+
+    .scale-card.active::before {
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+
+    /* Canvas overlay */
+    .canvas-overlay {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Status indicator */
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      transition: all 0.3s;
+    }
+
+    .status-dot.running {
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse-dot 1s infinite;
+    }
+
+    .status-dot.paused {
+      background: #f59e0b;
+    }
+
+    .status-dot.stopped {
+      background: #64748b;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* Particle trail effect */
+    .trail-fade {
+      animation: fade-out 2s forwards;
+    }
+
+    @keyframes fade-out {
+      to { opacity: 0; }
+    }
+
+    /* Scrollbar */
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.3);
+      border-radius: 2px;
+    }
+
+    /* Equation overlay style */
+    .equation-overlay {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(139, 92, 246, 0.7);
+      white-space: nowrap;
+    }
+
+    /* Tooltip */
+    .info-tooltip {
+      position: relative;
+    }
+    .info-tooltip::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: rgba(15, 15, 26, 0.95);
+      color: #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      z-index: 100;
+    }
+    .info-tooltip:hover::after {
+      opacity: 1;
+    }
+
+    /* Replica visualization */
+    .replica-path {
+      stroke-dasharray: 4;
+      animation: dash-flow 2s linear infinite;
+    }
+    @keyframes dash-flow {
+      to { stroke-dashoffset: -16; }
+    }
+
+    /* Metric bar */
+    .metric-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+    .metric-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Responsive layout */
+    @media (max-width: 768px) {
+      .controls-panel {
+        max-height: 40vh;
+        order: -1;
+      }
+      .canvas-area {
+        min-height: 300px;
+      }
+    }
+
+    /* Noise texture */
+    .noise-bg {
+      position: relative;
+    }
+    .noise-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.03;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px;
+    }
+
+    /* Value display */
+    .value-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Select */
+    select {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M3 4h6L6 8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 32px;
+    }
+    select:focus {
+      border-color: rgba(139, 92, 246, 0.5);
+    }
+    select option {
+      background: #1a1a2e;
+      color: #e2e8f0;
+    }
+
+    /* Bilingual label */
+    .bilingual-label {
+      font-size: 11px;
+      color: rgba(148, 163, 184, 0.6);
+      margin-top: 2px;
+    }
+
+    /* Canvas */
+    #simCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const katexOptions = {
+        delimiters: [
+            {left: '\\[', right: '\\]', display: true},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+        ],
+        throwOnError: false,
+        strict: false,
+        trust: true
+    };
+
+    let renderTimeout;
+    function safeRender() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderMathInElement(document.body, katexOptions);
+        }, 100);
+    }
+
+    renderMathInElement(document.body, katexOptions);
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldRender = false;
+        mutations.forEach((mutation) => {
+            if (mutation.target &&
+                mutation.target.className &&
+                typeof mutation.target.className === 'string' &&
+                mutation.target.className.includes('katex')) {
+                return;
+            }
+            shouldRender = true;
+        });
+
+        if (shouldRender) {
+            safeRender();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    setInterval(() => {
+        const text = document.body.innerText;
+        if (text.includes('\\(') || text.includes('$$')) {
+            safeRender();
+        }
+    }, 2000);
+});
+</script>
+</head>
+<body class="h-screen w-screen flex flex-col md:flex-row overflow-hidden noise-bg">
+
+  <!-- Hidden widget config -->
+  <script type="application/json" id="widget-config">
+  {
+    "type": "simulation",
+    "concept": "multiscale_disorder_fluctuation",
+    "description": "Interactive multiscale simulation exploring disorder and fluctuation from nanometer spins to kilometer-scale geophysics. Visualizes how the Parisi replica method bridges seemingly unrelated physical systems through universal statistical mechanics.",
+    "variables": [
+      { "name": "spatial_scale", "label": "空间尺度", "min": -9, "max": 6, "default": -7, "unit": "m (log)" },
+      { "name": "disorder_correlation_length", "label": "无序关联长度", "min": 0.1, "max": 5, "default": 1.0, "unit": "ξ" },
+      { "name": "effective_temperature", "label": "有效温度", "min": 0.01, "max": 3, "default": 0.5, "unit": "T/T_c" },
+      { "name": "system_type", "label": "系统类型", "min": 0, "max": 3, "default": 0, "unit": "type" }
+    ],
+    "presets": [
+      { "name": "纳米自旋玻璃", "variables": { "spatial_scale": -9, "disorder_correlation_length": 0.5, "effective_temperature": 0.3, "system_type": 0 } },
+      { "name": "颗粒物质流", "variables": { "spatial_scale": -3, "disorder_correlation_length": 2, "effective_temperature": 0.8, "system_type": 1 } },
+      { "name": "经典湍流", "variables": { "spatial_scale": 0, "disorder_correlation_length": 1.5, "effective_temperature": 1.5, "system_type": 2 } },
+      { "name": "气候系统", "variables": { "spatial_scale": 6, "disorder_correlation_length": 3, "effective_temperature": 1.0, "system_type": 3 } }
+    ]
+  }
+  </script>
+
+  <!-- Control Panel -->
+  <aside id="controls" class="controls-panel w-full md:w-[380px] shrink-0 glass-panel flex flex-col overflow-hidden z-20">
+    <div class="p-4 md:p-5 border-b border-white/5 flex items-center justify-between">
+      <div>
+        <h1 class="text-base font-bold text-white leading-tight">多尺度无序与涨落</h1>
+        <p class="text-xs text-slate-400 mt-1">Multiscale Disorder &amp; Fluctuation</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="statusDot" class="status-dot stopped"></span>
+        <span id="statusText" class="text-xs text-slate-400 font-mono">就绪</span>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto custom-scroll p-4 md:p-5 space-y-5">
+
+      <!-- Scale Selection -->
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-slate-300 tracking-wide uppercase">物理层级 / Scale Hierarchy</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="scale-0-btn" class="scale-card glass-card active p-3 text-left touch-btn" data-scale="0"
+                  style="--glow-color: rgba(139, 92, 246, 0.4);" onclick="setScale(0)">
+            <div class="text-xs font-bold text-violet-400">纳米自旋玻璃</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Nano Spin Glass</div>
+            <div class="text-[10px] text-slate-600 font-mono mt-1">~10⁻⁹ m</div>
+          </button>
+          <button id="scale-1-btn" class="scale-card glass-card p-3 text-left touch-btn" data-scale="1"
+                  style="--glow-color: rgba(59, 130, 246, 0.4);" onclick="setScale(1)">
+            <div class="text-xs font-bold text-blue-400">微观颗粒流</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Granular Flow</div>
+            <div class="text-[10px] text-slate-600 font-mono mt-1">~10⁻³ m</div>
+          </button>
+          <button id="scale-2-btn" class="scale-card glass-card p-3 text-left touch-btn" data-scale="2"
+                  style="--glow-color: rgba(16, 185, 129, 0.4);" onclick="setScale(2)">
+            <div class="text-xs font-bold text-emerald-400">介观湍流</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Classical Turbulence</div>
+            <div class="text-[10px] text-slate-600 font-mono mt-1">~10⁰ m</div>
+          </button>
+          <button id="scale-3-btn" class="scale-card glass-card p-3 text-left touch-btn" data-scale="3"
+                  style="--glow-color: rgba(245, 158, 11, 0.4);" onclick="setScale(3)">
+            <div class="text-xs font-bold text-amber-400">千米气候</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Climate System</div>
+            <div class="text-[10px] text-slate-600 font-mono mt-1">~10⁶ m</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Variables -->
+      <div class="space-y-4">
+        <label class="text-xs font-semibold text-slate-300 tracking-wide uppercase">控制参数 / Control Variables</label>
+
+        <!-- Spatial Scale -->
+        <div>
+          <div class="flex justify-between items-end mb-1">
+            <span class="text-sm text-slate-200">空间尺度</span>
+            <span id="spatial_scale-display" class="value-display text-sm font-semibold text-violet-400">-7</span>
+          </div>
+          <div class="bilingual-label">Spatial Scale log₁₀(m)</div>
+          <input type="range" id="spatial_scale-slider" data-var="spatial_scale"
+                 min="-9" max="6" step="0.5" value="-7" oninput="updateVariable('spatial_scale', this.value)">
+        </div>
+
+        <!-- Disorder Correlation -->
+        <div>
+          <div class="flex justify-between items-end mb-1">
+            <span class="text-sm text-slate-200">无序关联长度 ξ</span>
+            <span id="disorder_correlation_length-display" class="value-display text-sm font-semibold text-violet-400">1.0</span>
+          </div>
+          <div class="bilingual-label">Disorder Correlation Length ξ</div>
+          <input type="range" id="disorder_correlation_length-slider" data-var="disorder_correlation_length"
+                 min="0.1" max="5" step="0.1" value="1.0" oninput="updateVariable('disorder_correlation_length', this.value)">
+        </div>
+
+        <!-- Effective Temperature -->
+        <div>
+          <div class="flex justify-between items-end mb-1">
+            <span class="text-sm text-slate-200">有效温度 T/T_c</span>
+            <span id="effective_temperature-display" class="value-display text-sm font-semibold text-violet-400">0.5</span>
+          </div>
+          <div class="bilingual-label">Effective Temperature (reduced)</div>
+          <input type="range" id="effective_temperature-slider" data-var="effective_temperature"
+                 min="0.01" max="3" step="0.05" value="0.5" oninput="updateVariable('effective_temperature', this.value)">
+        </div>
+      </div>
+
+      <!-- Metrics Panel -->
+      <div class="space-y-3">
+        <label class="text-xs font-semibold text-slate-300 tracking-wide uppercase">实时度量 / Live Metrics</label>
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-400">Parisi 序参量 q</span>
+            <span id="parisi-q" class="value-display text-emerald-400">0.00</span>
+          </div>
+          <div class="metric-bar">
+            <div id="parisi-q-bar" class="metric-bar-fill bg-emerald-500/60" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-xs mb-1 mt-2">
+            <span class="text-slate-400">涨落强度 σ</span>
+            <span id="fluctuation-sigma" class="value-display text-amber-400">0.00</span>
+          </div>
+          <div class="metric-bar">
+            <div id="fluctuation-sigma-bar" class="metric-bar-fill bg-amber-500/60" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-xs mb-1 mt-2">
+            <span class="text-slate-400">复本重叠 P(q)</span>
+            <span id="replica-overlap" class="value-display text-violet-400">0.00</span>
+          </div>
+          <div class="metric-bar">
+            <div id="replica-overlap-bar" class="metric-bar-fill bg-violet-500/60" style="width: 0%"></div>
+          </div>
+          <div class="flex justify-between text-xs mb-1 mt-2">
+            <span class="text-slate-400">能量景观粗糙度</span>
+            <span id="energy-rugosity" class="value-display text-rose-400">0.00</span>
+          </div>
+          <div class="metric-bar">
+            <div id="energy-rugosity-bar" class="metric-bar-fill bg-rose-500/60" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Concept Note -->
+      <div class="glass-card p-3 text-xs text-slate-400 leading-relaxed">
+        <span class="text-violet-400 font-semibold">复本方法</span> (Replica Method)：
+        将系统复制多份，在不同无序实现下观察涨落。当温度降低，复本间重叠分布 P(q) 从单峰→多峰，标志<span class="text-amber-400">复本对称破缺</span> (RSB) ——秩序在无序中涌现。
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex gap-2 pt-2">
+        <button id="start-btn" class="flex-1 touch-btn bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg px-4 py-3 transition-all active:scale-95 text-sm shadow-lg shadow-violet-900/30"
+                onclick="handleMainButton()">
+          启动
+        </button>
+        <button id="reset-btn" class="touch-btn glass-card text-slate-300 hover:text-white font-semibold rounded-lg px-4 py-3 transition-all active:scale-95 text-sm"
+                onclick="resetSimulation()">
+          重置
+        </button>
+      </div>
+
+      <!-- Presets -->
+      <div class="flex gap-2 flex-wrap">
+        <button class="touch-btn glass-card text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg transition-all" onclick="applyPreset(0)">纳米自旋玻璃</button>
+        <button class="touch-btn glass-card text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg transition-all" onclick="applyPreset(1)">颗粒物质</button>
+        <button class="touch-btn glass-card text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg transition-all" onclick="applyPreset(2)">经典湍流</button>
+        <button class="touch-btn glass-card text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg transition-all" onclick="applyPreset(3)">气候系统</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Canvas Area -->
+  <main class="canvas-area flex-1 relative min-h-[300px] bg-[#0a0a14]">
+    <canvas id="simCanvas"></canvas>
+
+    <!-- Overlay Info -->
+    <div class="canvas-overlay">
+      <!-- Top-left: Scale info -->
+      <div class="absolute top-3 left-3 md:top-5 md:left-5 pointer-events-none">
+        <div class="glass-card px-4 py-2.5 inline-flex items-center gap-3">
+          <div id="scaleIndicator" class="w-3 h-3 rounded-full bg-violet-500 shadow-lg shadow-violet-500/40"></div>
+          <div>
+            <div id="scaleTitle" class="text-sm font-bold text-white">纳米自旋玻璃</div>
+            <div id="scaleSubtitle" class="text-[10px] text-slate-400 font-mono">Nano Spin Glass | ~10⁻⁹ m</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top-right: Time -->
+      <div class="absolute top-3 right-3 md:top-5 md:right-5 pointer-events-none">
+        <div class="glass-card px-4 py-2.5 text-right">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider">仿真时间</div>
+          <div id="simTime" class="value-display text-lg font-bold text-white">0.00</div>
+          <div class="text-[10px] text-slate-500 font-mono">t (reduced units)</div>
+        </div>
+      </div>
+
+      <!-- Bottom: Replica overlap distribution hint -->
+      <div class="absolute bottom-3 left-3 right-3 md:bottom-5 md:left-5 md:right-auto md:w-80 pointer-events-none">
+        <div class="glass-card px-4 py-3">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-2 h-2 rounded-full bg-violet-400"></div>
+            <span class="text-xs font-semibold text-slate-200">复本重叠分布 P(q)</span>
+          </div>
+          <canvas id="miniPqCanvas" width="300" height="60" class="w-full h-[50px] rounded"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ========== STATE ==========
+    let state = {
+      running: false,
+      ended: false,
+      paused: false,
+      time: 0,
+      scale: 0, // 0=nano, 1=micro, 2=meso, 3=geo
+      spatialScale: -7,
+      disorderLength: 1.0,
+      temperature: 0.5,
+      particles: [],
+      replicas: [],
+      energyLandscape: null,
+      seed: 42,
+    };
+
+    // Scale definitions
+    const scales = [
+      { name: '纳米自旋玻璃', en: 'Nano Spin Glass', range: '~10⁻⁹ m', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', numParticles: 40, particleSize: 3 },
+      { name: '微观颗粒物质', en: 'Granular Matter', range: '~10⁻³ m', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', numParticles: 30, particleSize: 5 },
+      { name: '介观经典湍流', en: 'Classical Turbulence', range: '~10⁰ m', color: '#10b981', bg: 'rgba(16,185,129,0.08)', numParticles: 60, particleSize: 2.5 },
+      { name: '千米气候系统', en: 'Climate System', range: '~10⁶ m', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', numParticles: 25, particleSize: 6 },
+    ];
+
+    // ========== CANVAS ==========
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const miniCanvas = document.getElementById('miniPqCanvas');
+    const miniCtx = miniCanvas.getContext('2d');
+
+    function resizeCanvas() {
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+    }
+
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(resizeCanvas, 100);
+    });
+    resizeCanvas();
+
+    // ========== NOISE / RANDOM ==========
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+    }
+
+    let rng = mulberry32(state.seed);
+
+    function seededRandom() { return rng(); }
+
+    function perlinNoise2D(x, y, scale, octaves) {
+      let value = 0;
+      let amplitude = 1;
+      let freq = scale;
+      let max = 0;
+      for (let i = 0; i < octaves; i++) {
+        value += amplitude * simpleNoise(x * freq, y * freq);
+        max += amplitude;
+        amplitude *= 0.5;
+        freq *= 2;
+      }
+      return value / max;
+    }
+
+    function simpleNoise(x, y) {
+      const ix = Math.floor(x);
+      const iy = Math.floor(y);
+      const fx = x - ix;
+      const fy = y - iy;
+      const a = hash2D(ix, iy);
+      const b = hash2D(ix + 1, iy);
+      const c = hash2D(ix, iy + 1);
+      const d = hash2D(ix + 1, iy + 1);
+      const ux = fx * fx * (3 - 2 * fx);
+      const uy = fy * fy * (3 - 2 * fy);
+      return lerp(lerp(a, b, ux), lerp(c, d, ux), uy);
+    }
+
+    function hash2D(x, y) {
+      let h = x * 374761393 + y * 668265263;
+      h = (h ^ (h >> 13)) * 1274126177;
+      return ((h ^ (h >> 16)) & 0x7fffffff) / 0x7fffffff * 2 - 1;
+    }
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    // ========== PARTICLE SYSTEM ==========
+    class Particle {
+      constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.type = type;
+        this.trail = [];
+        this.energy = 0;
+        this.phase = seededRandom() * Math.PI * 2;
+        this.replicaId = 0;
+      }
+
+      update(dt, landscape, T, xi, scaleType) {
+        // Gradient descent on energy landscape + thermal noise + disorder
+        const gx = (landscape(this.x + 2, this.y) - landscape(this.x - 2, this.y)) / 4;
+        const gy = (landscape(this.x, this.y + 2) - landscape(this.x, this.y - 2)) / 4;
+
+        // Different physics at different scales
+        let damping, noiseAmp, driftStrength;
+        switch(scaleType) {
+          case 0: // Spin glass - slow, glassy dynamics
+            damping = 0.92;
+            noiseAmp = T * 0.8;
+            driftStrength = -0.15;
+            break;
+          case 1: // Granular - jamming/unjamming
+            damping = 0.88;
+            noiseAmp = T * 1.2;
+            driftStrength = -0.2;
+            break;
+          case 2: // Turbulence - chaotic, fast
+            damping = 0.95;
+            noiseAmp = T * 2.0;
+            driftStrength = -0.1;
+            break;
+          case 3: // Climate - slow, large-scale
+            damping = 0.97;
+            noiseAmp = T * 1.5;
+            driftStrength = -0.05;
+            break;
+        }
+
+        // Scale-dependent velocity
+        const scaleFactor = Math.pow(10, (state.spatialScale + 7) / 3);
+
+        this.vx += gx * driftStrength * scaleFactor + (seededRandom() - 0.5) * noiseAmp;
+        this.vy += gy * driftStrength * scaleFactor + (seededRandom() - 0.5) * noiseAmp;
+
+        this.vx *= damping;
+        this.vy *= damping;
+
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Boundary wrap with padding
+        const pad = 30;
+        if (this.x < pad) { this.x = pad; this.vx *= -0.5; }
+        if (this.x > canvas.width - pad) { this.x = canvas.width - pad; this.vx *= -0.5; }
+        if (this.y < pad) { this.y = pad; this.vy *= -0.5; }
+        if (this.y > canvas.height - pad) { this.y = canvas.height - pad; this.vy *= -0.5; }
+
+        // Trail
+        if (state.running && state.time % 3 < 1) {
+          this.trail.push({ x: this.x, y: this.y, age: 0 });
+        }
+        this.trail = this.trail.filter(t => {
+          t.age += dt;
+          return t.age < 2;
+        });
+
+        this.energy = landscape(this.x, this.y);
+        this.phase += dt * 2;
+      }
+    }
+
+    // ========== ENERGY LANDSCAPE ==========
+    function buildLandscape() {
+      const xi = state.disorderLength;
+      const scale = state.spatialScale;
+      const T = state.temperature;
+      const type = state.scale;
+
+      // Disorder correlation controls landscape roughness
+      const freq = 0.02 / xi;
+
+      return function(x, y) {
+        // Base landscape
+        let e = 0;
+
+        // Scale-dependent terrain
+        switch(type) {
+          case 0: // Spin glass - many sharp minima
+            e += perlinNoise2D(x, y, freq, 4) * 3;
+            e += perlinNoise2D(x + 100, y + 100, freq * 2, 3) * 1.5;
+            // Sharp peaks
+            e += Math.sin(x * freq * 3) * Math.cos(y * freq * 3) * 0.5;
+            break;
+          case 1: // Granular - larger smoother basins with defects
+            e += perlinNoise2D(x, y, freq * 0.5, 3) * 2;
+            e += perlinNoise2D(x + 50, y - 30, freq * 1.5, 2) * 1;
+            // Jamming points
+            const jx = Math.floor(x / (80 * xi)) * (80 * xi) + 40 * xi;
+            const jy = Math.floor(y / (80 * xi)) * (80 * xi) + 40 * xi;
+            const dist = Math.hypot(x - jx, y - jy);
+            if (dist < 30 * xi) e += (1 - dist / (30 * xi)) * 2;
+            break;
+          case 2: // Turbulence - vortices, stretched structures
+            e += perlinNoise2D(x, y, freq, 4) * 1.5;
+            const vortexX = x + perlinNoise2D(x * 0.01, y * 0.01, 0.1, 2) * 100;
+            const vortexY = y + perlinNoise2D(x * 0.01 + 100, y * 0.01, 0.1, 2) * 100;
+            e += Math.sin(vortexX * freq) * Math.cos(vortexY * freq * 0.7) * 1;
+            break;
+          case 3: // Climate - large-scale patterns, El Nino-like oscillations
+            e += perlinNoise2D(x, y, freq * 0.3, 3) * 2.5;
+            e += Math.sin(x * freq * 0.5 + state.time * 0.5) * Math.cos(y * freq * 0.3) * 1.5;
+            e += perlinNoise2D(x * 0.1, y * 0.1 + state.time * 0.2, 0.05, 2) * 2;
+            break;
+        }
+
+        return e;
+      };
+    }
+
+    // ========== INIT / RESET ==========
+    function initParticles() {
+      const s = scales[state.scale];
+      state.particles = [];
+      state.replicas = [];
+
+      for (let i = 0; i < s.numParticles; i++) {
+        const x = 40 + seededRandom() * (canvas.width - 80);
+        const y = 40 + seededRandom() * (canvas.height - 80);
+        state.particles.push(new Particle(x, y, 0));
+      }
+
+      // Create 3 replicas for visualization
+      for (let r = 0; r < 3; r++) {
+        const replica = [];
+        for (let i = 0; i < s.numParticles; i++) {
+          const p = new Particle(state.particles[i].x, state.particles[i].y, 0);
+          p.replicaId = r;
+          // Slightly different initial conditions
+          p.x += (seededRandom() - 0.5) * 5;
+          p.y += (seededRandom() - 0.5) * 5;
+          replica.push(p);
+        }
+        state.replicas.push(replica);
+      }
+    }
+
+    function resetSimulation() {
+      state.running = false;
+      state.ended = false;
+      state.paused = false;
+      state.time = 0;
+      state.seed = Math.floor(Math.random() * 100000);
+      rng = mulberry32(state.seed);
+
+      initParticles();
+      state.energyLandscape = buildLandscape();
+
+      updateUIState();
+      draw();
+    }
+
+    // ========== DRAWING ==========
+    function drawEnergyLandscape(ctx) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const landscape = state.energyLandscape;
+      const xi = state.disorderLength;
+      const scale = state.scale;
+
+      // Draw as contour-like visualization
+      const step = 15;
+      const cols = scales[scale].color;
+
+      for (let x = 0; x < w; x += step) {
+        for (let y = 0; y < h; y += step) {
+          const e = landscape(x, y);
+          const normE = (e + 3) / 6; // normalize roughly
+          const clamped = Math.max(0, Math.min(1, normE));
+
+          // Color based on energy
+          let r, g, b, a;
+          if (scale === 0) { // purple
+            r = 80 + clamped * 60; g = 50 + clamped * 40; b = 180 + clamped * 40;
+            a = 0.08 + clamped * 0.12;
+          } else if (scale === 1) { // blue
+            r = 40 + clamped * 30; g = 80 + clamped * 60; b = 180 + clamped * 50;
+            a = 0.08 + clamped * 0.12;
+          } else if (scale === 2) { // emerald
+            r = 30 + clamped * 40; g = 140 + clamped * 60; b = 100 + clamped * 40;
+            a = 0.08 + clamped * 0.12;
+          } else { // amber
+            r = 180 + clamped * 50; g = 120 + clamped * 40; b = 30 + clamped * 20;
+            a = 0.08 + clamped * 0.12;
+          }
+
+          ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${a})`;
+          ctx.fillRect(x, y, step, step);
+        }
+      }
+
+      // Draw energy contours
+      ctx.strokeStyle = scales[scale].color + '18';
+      ctx.lineWidth = 1;
+      for (let threshold = -2; threshold <= 2; threshold += 0.5) {
+        ctx.beginPath();
+        for (let x = 0; x < w; x += 8) {
+          for (let y = 0; y < h; y += 8) {
+            const e = landscape(x, y);
+            if (Math.abs(e - threshold) < 0.15) {
+              ctx.moveTo(x, y);
+              ctx.lineTo(x + 1, y + 1);
+            }
+          }
+        }
+        ctx.stroke();
+      }
+    }
+
+    function drawParticles(ctx, particles, alpha, isReplica) {
+      const s = scales[state.scale];
+      const cols = s.color;
+
+      // Draw trails
+      particles.forEach(p => {
+        if (p.trail.length > 1) {
+          ctx.beginPath();
+          p.trail.forEach((t, i) => {
+            const a = (1 - t.age / 2) * alpha * 0.6;
+            if (i === 0) ctx.moveTo(t.x, t.y);
+            else ctx.lineTo(t.x, t.y);
+          });
+          ctx.strokeStyle = cols + Math.floor(alpha * 80).toString(16).padStart(2, '0');
+          ctx.lineWidth = isReplica ? 0.5 : 1;
+          ctx.stroke();
+        }
+      });
+
+      // Draw particles
+      particles.forEach(p => {
+        const size = isReplica ? s.particleSize * 0.6 : s.particleSize;
+
+        // Glow
+        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 4);
+        if (isReplica) {
+          glow.addColorStop(0, cols + '15');
+          glow.addColorStop(1, cols + '00');
+        } else {
+          glow.addColorStop(0, cols + '30');
+          glow.addColorStop(1, cols + '00');
+        }
+        ctx.fillStyle = glow;
+        ctx.fillRect(p.x - size * 4, p.y - size * 4, size * 8, size * 8);
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        if (isReplica) {
+          ctx.fillStyle = cols + '60';
+          ctx.strokeStyle = cols + '80';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = cols;
+          ctx.shadowColor = cols;
+          ctx.shadowBlur = 10;
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // For spin glass, draw spin orientation
+        if (state.scale === 0 && !isReplica) {
+          const spinAngle = p.phase;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x + Math.cos(spinAngle) * size * 2, p.y + Math.sin(spinAngle) * size * 2);
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      });
+    }
+
+    function drawReplicaConnections(ctx) {
+      if (state.replicas.length < 2) return;
+
+      const main = state.particles;
+      const rep = state.replicas[1]; // Compare with second replica
+
+      // Draw lines showing overlap between replicas
+      for (let i = 0; i < Math.min(main.length, rep.length); i++) {
+        const dx = main[i].x - rep[i].x;
+        const dy = main[i].y - rep[i].y;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = 50 + state.disorderLength * 20;
+        const overlap = Math.max(0, 1 - dist / maxDist);
+
+        if (overlap > 0.1) {
+          ctx.beginPath();
+          ctx.moveTo(main[i].x, main[i].y);
+          ctx.lineTo(rep[i].x, rep[i].y);
+          ctx.strokeStyle = `rgba(139, 92, 246, ${overlap * 0.3})`;
+          ctx.lineWidth = overlap * 2;
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawPqDistribution() {
+      const w = miniCanvas.width;
+      const h = miniCanvas.height;
+      miniCtx.clearRect(0, 0, w, h);
+
+      // Calculate overlap distribution
+      const overlaps = [];
+      if (state.replicas.length >= 2) {
+        for (let i = 0; i < state.particles.length; i++) {
+          const dx = state.particles[i].x - state.replicas[1][i].x;
+          const dy = state.particles[i].y - state.replicas[1][i].y;
+          const dist = Math.hypot(dx, dy);
+          const maxDist = 100;
+          const q = Math.max(0, 1 - dist / maxDist);
+          overlaps.push(q);
+        }
+      }
+
+      // Draw histogram
+      const bins = 20;
+      const binCounts = new Array(bins).fill(0);
+      overlaps.forEach(q => {
+        const b = Math.min(bins - 1, Math.floor(q * bins));
+        binCounts[b]++;
+      });
+
+      const maxCount = Math.max(1, ...binCounts);
+      const barW = w / bins;
+
+      for (let i = 0; i < bins; i++) {
+        const bh = (binCounts[i] / maxCount) * h * 0.9;
+        const alpha = 0.3 + (binCounts[i] / maxCount) * 0.7;
+        miniCtx.fillStyle = `rgba(139, 92, 246, ${alpha})`;
+        miniCtx.fillRect(i * barW, h - bh, barW - 1, bh);
+      }
+
+      // Draw q-axis
+      miniCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+      miniCtx.lineWidth = 1;
+      miniCtx.beginPath();
+      miniCtx.moveTo(0, h);
+      miniCtx.lineTo(w, h);
+      miniCtx.stroke();
+
+      // Single peak vs multi-peak indicator
+      const T = state.temperature;
+      const tc = 1.0; // Critical temperature
+      miniCtx.fillStyle = T < tc ? 'rgba(245, 158, 11, 0.8)' : 'rgba(16, 185, 129, 0.8)';
+      miniCtx.font = '10px JetBrains Mono';
+      miniCtx.fillText(T < tc ? '多峰 (RSB)' : '单峰 (RS)', 8, 14);
+    }
+
+    function draw() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const s = scales[state.scale];
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Background
+      ctx.fillStyle = scales[state.scale].bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < w; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y < h; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // Energy landscape
+      drawEnergyLandscape(ctx);
+
+      // Replica connections
+      if (state.running || state.time > 0) {
+        drawReplicaConnections(ctx);
+      }
+
+      // Replica particles (fainter)
+      state.replicas.forEach((rep, idx) => {
+        const alpha = 0.3 - idx * 0.08;
+        drawParticles(ctx, rep, alpha, true);
+      });
+
+      // Main particles
+      drawParticles(ctx, state.particles, 1, false);
+
+      // Scale indicator text on canvas
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.font = 'bold 80px "Noto Sans SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.name, w / 2, h / 2);
+
+      // Equation watermark
+      ctx.font = '12px JetBrains Mono';
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.15)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      const eqs = [
+        'F = -∇V + η(t)  [Langevin]',
+        'P(q) = ⟨δ(q - qₐᵦ)⟩  [Parisi]',
+        'q = (1/N)Σᵢ SᵢᵃSᵢᵝ  [Overlap]',
+        'ξ ~ |T - T_c|⁻ᵛ  [Correlation]'
+      ];
+      eqs.forEach((eq, i) => {
+        ctx.fillText(eq, 10, h - 80 + i * 18);
+      });
+    }
+
+    // ========== UPDATE ==========
+    let lastTime = 0;
+    function animate(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+
+      if (state.running) {
+        state.time += dt;
+
+        const landscape = state.energyLandscape;
+        const T = state.temperature;
+        const xi = state.disorderLength;
+        const type = state.scale;
+
+        // Update main particles
+        state.particles.forEach(p => p.update(dt * 60, landscape, T, xi, type));
+
+        // Update replicas
+        state.replicas.forEach(rep => {
+          rep.forEach(p => p.update(dt * 60, landscape, T, xi, type));
+        });
+
+        // Update metrics
+        updateMetrics();
+
+        // Check for automatic pause (optional - for demonstration)
+        if (state.time > 60) {
+          state.running = false;
+          state.ended = true;
+          updateUIState();
+        }
+      }
+
+      draw();
+      drawPqDistribution();
+
+      requestAnimationFrame(animate);
+    }
+
+    function updateMetrics() {
+      // Calculate Parisi order parameter q
+      let qSum = 0;
+      if (state.replicas.length >= 2) {
+        for (let i = 0; i < state.particles.length; i++) {
+          const dx = state.particles[i].x - state.replicas[1][i].x;
+          const dy = state.particles[i].y - state.replicas[1][i].y;
+          const dist = Math.hypot(dx, dy);
+          const maxDist = 100;
+          qSum += Math.max(0, 1 - dist / maxDist);
+        }
+      }
+      const q = state.particles.length > 0 ? qSum / state.particles.length : 0;
+
+      // Fluctuation strength
+      let velSum = 0;
+      state.particles.forEach(p => {
+        velSum += Math.hypot(p.vx, p.vy);
+      });
+      const sigma = state.particles.length > 0 ? velSum / state.particles.length : 0;
+
+      // Replica overlap (simplified)
+      const repOverlap = q;
+
+      // Energy rugosity
+      const landscape = state.energyLandscape;
+      let rugosity = 0;
+      for (let i = 0; i < 20; i++) {
+        const x = seededRandom() * canvas.width;
+        const y = seededRandom() * canvas.height;
+        const e = landscape(x, y);
+        rugosity += Math.abs(e);
+      }
+      rugosity = rugosity / 20 / 3; // normalize
+
+      // Update DOM
+      document.getElementById('parisi-q').textContent = q.toFixed(3);
+      document.getElementById('parisi-q-bar').style.width = (q * 100) + '%';
+
+      document.getElementById('fluctuation-sigma').textContent = sigma.toFixed(3);
+      document.getElementById('fluctuation-sigma-bar').style.width = Math.min(100, sigma * 20) + '%';
+
+      document.getElementById('replica-overlap').textContent = repOverlap.toFixed(3);
+      document.getElementById('replica-overlap-bar').style.width = (repOverlap * 100) + '%';
+
+      document.getElementById('energy-rugosity').textContent = rugosity.toFixed(3);
+      document.getElementById('energy-rugosity-bar').style.width = (rugosity * 100) + '%';
+
+      document.getElementById('simTime').textContent = state.time.toFixed(2);
+    }
+
+    // ========== UI STATE ==========
+    function updateUIState() {
+      const btn = document.getElementById('start-btn');
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+
+      if (state.ended) {
+        btn.textContent = '重新开始';
+        btn.classList.add('bg-amber-600', 'hover:bg-amber-500');
+        btn.classList.remove('bg-violet-600', 'hover:bg-violet-500');
+        dot.className = 'status-dot stopped';
+        txt.textContent = '结束';
+      } else if (state.running) {
+        btn.textContent = '暂停';
+        btn.classList.add('bg-rose-600', 'hover:bg-rose-500');
+        btn.classList.remove('bg-violet-600', 'hover:bg-violet-500', 'bg-amber-600', 'hover:bg-amber-500');
+        dot.className = 'status-dot running';
+        txt.textContent = '运行中';
+      } else if (state.paused) {
+        btn.textContent = '继续';
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+        btn.classList.remove('bg-violet-600', 'hover:bg-violet-500', 'bg-rose-600', 'hover:bg-rose-500', 'bg-amber-600', 'hover:bg-amber-500');
+        dot.className = 'status-dot paused';
+        txt.textContent = '已暂停';
+      } else {
+        btn.textContent = '启动';
+        btn.classList.add('bg-violet-600', 'hover:bg-violet-500');
+        btn.classList.remove('bg-rose-600', 'hover:bg-rose-500', 'bg-emerald-600', 'hover:bg-emerald-500', 'bg-amber-600', 'hover:bg-amber-500');
+        dot.className = 'status-dot stopped';
+        txt.textContent = '就绪';
+      }
+    }
+
+    function handleMainButton() {
+      if (state.ended) {
+        resetSimulation();
+        state.running = true;
+        state.ended = false;
+        state.paused = false;
+      } else if (state.running) {
+        state.running = false;
+        state.paused = true;
+      } else if (state.paused) {
+        state.running = true;
+        state.paused = false;
+      } else {
+        state.running = true;
+      }
+      updateUIState();
+    }
+
+    // ========== SCALE / VARIABLES ==========
+    function setScale(n) {
+      state.scale = n;
+      state.spatialScale = [-9, -3, 0, 6][n];
+
+      // Update buttons
+      document.querySelectorAll('.scale-card').forEach((btn, i) => {
+        if (i === n) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      // Update slider
+      document.getElementById('spatial_scale-slider').value = state.spatialScale;
+      document.getElementById('spatial_scale-display').textContent = state.spatialScale;
+
+      // Update scale info
+      const s = scales[n];
+      document.getElementById('scaleTitle').textContent = s.name;
+      document.getElementById('scaleSubtitle').textContent = `${s.en} | ${s.range}`;
+      document.getElementById('scaleIndicator').style.background = s.color;
+      document.getElementById('scaleIndicator').style.boxShadow = `0 0 12px ${s.color}`;
+
+      resetSimulation();
+    }
+
+    function updateVariable(name, value) {
+      const v = parseFloat(value);
+      if (name === 'spatial_scale') {
+        state.spatialScale = v;
+        // Auto-select nearest scale
+        const scalesMap = [-9, -3, 0, 6];
+        let nearest = 0;
+        let minDist = Infinity;
+        scalesMap.forEach((s, i) => {
+          const d = Math.abs(s - v);
+          if (d < minDist) { minDist = d; nearest = i; }
+        });
+        if (minDist < 1.5 && state.scale !== nearest) {
+          setScale(nearest);
+          return; // setScale already calls reset
+        }
+      } else if (name === 'disorder_correlation_length') {
+        state.disorderLength = v;
+      } else if (name === 'effective_temperature') {
+        state.temperature = v;
+      }
+
+      document.getElementById(name + '-display').textContent = v.toFixed(name === 'spatial_scale' ? 1 : 2);
+
+      if (!state.running && state.time === 0) {
+        state.energyLandscape = buildLandscape();
+        draw();
+      }
+    }
+
+    function applyPreset(idx) {
+      const presets = [
+        { spatial_scale: -9, disorder_correlation_length: 0.5, effective_temperature: 0.3 },
+        { spatial_scale: -3, disorder_correlation_length: 2, effective_temperature: 0.8 },
+        { spatial_scale: 0, disorder_correlation_length: 1.5, effective_temperature: 1.5 },
+        { spatial_scale: 6, disorder_correlation_length: 3, effective_temperature: 1.0 },
+      ];
+      const p = presets[idx];
+
+      setScale(idx);
+      document.getElementById('disorder_correlation_length-slider').value = p.disorder_correlation_length;
+      document.getElementById('effective_temperature-slider').value = p.effective_temperature;
+      updateVariable('disorder_correlation_length', p.disorder_correlation_length);
+      updateVariable('effective_temperature', p.effective_temperature);
+
+      resetSimulation();
+    }
+
+    // ========== KEYBOARD ==========
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleMainButton();
+      } else if (e.code === 'KeyR') {
+        resetSimulation();
+      }
+    });
+
+    // ========== INIT ==========
+    state.energyLandscape = buildLandscape();
+    initParticles();
+    updateUIState();
+    requestAnimationFrame(animate);
+
+    // ========== POSTMESSAGE LISTENER ==========
+    window.addEventListener('message', function(event) {
+      const { type, target, state: msgState, content } = event.data;
+
+      switch (type) {
+        case 'SET_WIDGET_STATE':
+          if (msgState) {
+            Object.entries(msgState).forEach(([key, value]) => {
+              const slider = document.getElementById(key + '-slider') || document.querySelector('[data-var="' + key + '"]');
+              if (slider) {
+                slider.value = value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+          }
+          break;
+
+        case 'HIGHLIGHT_ELEMENT':
+          const highlightEl = document.querySelector(target);
+          if (highlightEl) {
+            highlightEl.style.outline = '3px solid rgba(139, 92, 246, 0.8)';
+            highlightEl.style.outlineOffset = '4px';
+            highlightEl.style.animation = 'pulse-highlight 2s infinite';
+            setTimeout(() => {
+              highlightEl.style.outline = '';
+              highlightEl.style.animation = '';
+            }, 3000);
+          }
+          break;
+
+        case 'ANNOTATE_ELEMENT':
+          const annotateEl = document.querySelector(target);
+          if (annotateEl && content) {
+            const rect = annotateEl.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'teacher-annotation';
+            tooltip.style.cssText = 'position:fixed; top:' + (rect.top - 40) + 'px; left:' + rect.left + 'px; background:rgba(139,92,246,0.95); color:white; padding:8px 12px; border-radius:8px; font-size:14px; z-index:1000; animation:fadeIn 0.3s; max-width:300px;';
+            tooltip.textContent = content;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 4000);
+          }
+          break;
+
+        case 'REVEAL_ELEMENT':
+          const revealEl = document.querySelector(target);
+          if (revealEl) {
+            revealEl.style.display = '';
+            revealEl.style.opacity = '1';
+          }
+          break;
+      }
+    });
+
+    // Add CSS for animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse-highlight {
+        0%, 100% { outline-color: rgba(139, 92, 246, 0.8); }
+        50% { outline-color: rgba(139, 92, 246, 0.4); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "course": "帕里西-自旋玻璃-RSB",
+  "note": "OpenMAIC 的导出/导入两端都不携带 per-agent voiceConfig（export 不写、import 不读），所以讨论角色的声音配置必须在导入后手动恢复。运行同目录的 restore-voices.js 即可。",
+  "narration": {
+    "scope": "global — settings-storage.state.ttsVoice",
+    "providerId": "openai-tts",
+    "voiceId": "echo",
+    "note": "原课用浏览器自带 TTS 生成、换 OpenAI 后失效；此处 audio/ 里的 49 段旁白是用 OpenAI echo (gpt-4o-mini-tts) 重新生成并通过 audioRef/mediaIndex 打包的。echo 同时也是实时讨论里老师(default-1)的声音。"
+  },
+  "discussionAgents": {
+    "scope": "per-agent — agent-registry-storage.state.agents[id].voiceConfig",
+    "providerId": "openai-tts",
+    "appliesTo": "仅影响互动课堂的实时讨论 TTS（现场生成，不在导出音频里）",
+    "assignments": {
+      "default-3": { "name": "显眼包", "voiceId": "nova" },
+      "default-4": { "name": "好奇宝宝", "voiceId": "alloy" },
+      "default-6": { "name": "思考者", "voiceId": "shimmer" }
+    }
+  },
+  "caveat": "默认 agent 的 voiceConfig 在部分 OpenMAIC 版本里会被 registry store 的 merge 逻辑在每次刷新时重置。若刷新后声音回退到 fallback，说明你的 OpenMAIC 缺少 default-agent voiceConfig 持久化修复。"
+}
