@@ -3,7 +3,7 @@
   "exportedAt": "2026-05-31T10:11:29.490Z",
   "appVersion": "0.0.0",
   "stage": {
-    "name": "复本对称破缺",
+    "name": "帕里西-自旋玻璃-RSB",
     "description": "",
     "language": "本课程以中文为主要教学语言，面向具备本科工科数学基础的学习者。所有核心物理术语（如 replica symmetry breaking、spin glass、Parisi 序参量）均采用中英双语标注，以降低抽象概念的认知门槛。由于学习者擅长抽象理解但容易流失注意力，内容避免严格数学推导，优先通过强比喻、即时交互和游戏化反馈建立直觉。跨语言场景统一用中文解释，不引入额外外语阅读负担。",
     "style": "professional",
